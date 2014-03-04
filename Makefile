@@ -1,18 +1,13 @@
+install:
+	@npm install --development
+
 lint:
-  # Linting
-  @grunt lint
+	@grunt lint
 
 specs:
-  @kaapi
-
-watch:
-  @kaapi --watch
-
-coverage:
-  @mkdir -p coverage
-  @kaapi --coverage
+	./node_modules/.bin/mocha-phantomjs -R spec http://127.0.0.1:9988/
 
 clean:
-  @rm -rf build coverage
+	@rm -rf build coverage
 
-.PHONY: coverage lint specs
+.PHONY: lint specs

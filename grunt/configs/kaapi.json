@@ -1,0 +1,14 @@
+{
+  "options": {
+    "browser": true,
+    "require": {
+      "base": "public",
+      "paths": {
+        "wunderbits/core": "wunderbits/core/public"
+      }
+    },
+    "server": {
+      "port": 9988
+    }
+  }
+}

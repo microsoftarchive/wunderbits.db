@@ -14,13 +14,16 @@ module.exports = function (grunt) {
 
     // Linting
     'jshint': config('jshint'),
-    'complexity': config('complexity')
+    'complexity': config('complexity'),
+
+    // specs
+    'kaapi/node': config('kaapi')
 
   });
 
   grunt.registerTask('lint', ['jshint', 'complexity']);
 
-  // grunt.registerTask('specs', ['kaapi/node', 'kaapi/phantom']);
+  grunt.registerTask('specs', ['kaapi/node']);
 
   grunt.registerTask('default', ['lint']);
 };

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Data storage for the browser",
   "scripts": {
-    "test": "grunt lint"
+    "test": "make specs"
   },
   "repository": {
     "type": "git",
@@ -18,7 +18,8 @@
     "grunt": "~0.4.2",
     "grunt-complexity": "~0.1.4",
     "grunt-contrib-jshint": "~0.8.0",
-    "kaapi": "~0.1.5",
+    "mocha-phantomjs": "~3.3.2",
+    "kaapi": "~0.1.6",
     "kaapi.coverage": "0.0.2"
   }
 }

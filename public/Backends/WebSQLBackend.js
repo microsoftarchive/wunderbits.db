@@ -505,13 +505,13 @@ define([
       var check = _checkSchema(storeFieldMap);
       check.then(function () {
 
-        infoLog('correct schema');
+        // infoLog('correct schema');
         dbDeferred.resolve();
       });
 
       check.fail(function () {
 
-        infoLog('wrong schema');
+        // infoLog('wrong schema');
         readAllForMigration().then(function () {
 
           truncate().done(function () {

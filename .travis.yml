@@ -7,3 +7,7 @@ git:
 
 before_install:
   - npm install -g --quiet --production grunt-cli
+
+before_script:
+  - grunt kaapi/node
+  - sleep 3
