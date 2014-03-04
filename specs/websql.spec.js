@@ -12,7 +12,7 @@ describe('Database/Backends/WebSQL', function () {
   beforeEach(function (done) {
 
     requirejs([
-      'WBDatabase',
+      'wunderbits/db/WBDatabase',
       'wunderbits/core/lib/clone'
     ], function (WBDatabase, _clone) {
 
@@ -50,23 +50,15 @@ describe('Database/Backends/WebSQL', function () {
       var read = function (task) {
 
         expect(task.assignee_id).to.equal(null);
-        dbInstance.crud.delete('tasks', taskData, {
-          'success': done
-        });
+        dbInstance.crud.delete('tasks', taskData).done(done);
       };
 
       var created = function () {
 
-        dbInstance.crud.read('tasks', {
-          'id': taskData.id
-        }, {
-          'success': read
-        });
+        dbInstance.crud.read('tasks', { 'id': taskData.id }).done(read);
       };
 
-      dbInstance.crud.create('tasks', taskData, {
-        'success': created
-      });
+      dbInstance.crud.create('tasks', taskData).done(created);
     });
 
     it('should write/read "null" as string "null"', function (done) {
@@ -76,23 +68,15 @@ describe('Database/Backends/WebSQL', function () {
       var read = function (task) {
 
         expect(task.title).to.equal('null');
-        dbInstance.crud.delete('tasks', taskData, {
-          'success': done
-        });
+        dbInstance.crud.delete('tasks', taskData).done(done);
       };
 
       var created = function () {
 
-        dbInstance.crud.read('tasks', {
-          'id': taskData.id
-        }, {
-          'success': read
-        });
+        dbInstance.crud.read('tasks', { 'id': taskData.id }).done(read);
       };
 
-      dbInstance.crud.create('tasks', taskData, {
-        'success': created
-      });
+      dbInstance.crud.create('tasks', taskData).done(created);
     });
   });
 });
