@@ -20,9 +20,12 @@ define([
   var defaultKeyPath = 'id';
 
   var DOMError = global.DOMError || global.DOMException;
-  var indexedDB = global.indexedDB || global.webkitIndexedDB || global.mozIndexedDB || global.msIndexedDB;
+  var indexedDB = global.indexedDB ||
+                  global.webkitIndexedDB ||
+                  global.mozIndexedDB ||
+                  global.msIndexedDB;
 
-  var TransactionModes = {
+  var Constants = {
     'READ': 'readonly',
     'WRITE': 'readwrite'
   };
@@ -80,7 +83,7 @@ define([
       }
 
       var db = event.target.result;
-      if (typeof db.version == 'string'){
+      if (typeof db.version === 'string'){
         self.openFailure('ERR_UPGRADE_BROWSER');
         return;
       }
@@ -153,7 +156,7 @@ define([
       var self = this;
       var deferred = new WBDeferred();
 
-      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
 
       var request = store.clear();
@@ -197,7 +200,7 @@ define([
       var self = this;
       var deferred = new WBDeferred();
 
-      var transaction = self.db.transaction([storeName], TransactionModes.READ);
+      var transaction = self.db.transaction([storeName], Constants.READ);
       var store = transaction.objectStore(storeName);
       var id = json[store.keyPath || defaultKeyPath] || json.id;
 
@@ -227,7 +230,7 @@ define([
       var self = this;
       var deferred = new WBDeferred();
 
-      var transaction = self.db.transaction([storeName], TransactionModes.READ);
+      var transaction = self.db.transaction([storeName], Constants.READ);
       var store = transaction.objectStore(storeName);
       var elements = [];
 
@@ -266,7 +269,7 @@ define([
       var self = this;
       var deferred = new WBDeferred();
 
-      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
 
       var request = store.put(json);
@@ -276,7 +279,8 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_UPDATE_FAILED', error, storeName, json);
+        self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+            error, storeName, json);
         deferred.reject();
       };
 
@@ -288,7 +292,7 @@ define([
       var self = this;
       var deferred = new WBDeferred();
 
-      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
       var id = json[store.keyPath || defaultKeyPath] || json.id;
 
@@ -299,7 +303,8 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_DESTROY_FAILED', error, storeName, json);
+        self.trigger('error', 'ERR_STORE_DESTROY_FAILED',
+            error, storeName, json);
         deferred.reject();
       };
 
