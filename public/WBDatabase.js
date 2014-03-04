@@ -31,14 +31,14 @@ define([
 
   // tests for storage engine availability
   var backendTests = {
-    'websql': [
-      'openDatabase'
-    ],
     'indexeddb': [
       'indexedDB',
       'webkitIndexedDB',
       'mozIndexedDB',
       'msIndexedDB'
+    ],
+    'websql': [
+      'openDatabase'
     ]
   };
 
