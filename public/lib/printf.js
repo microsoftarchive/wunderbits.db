@@ -1,4 +1,4 @@
-define(function () {
+define(function (undefined) {
 
   'use strict';
 
@@ -9,11 +9,8 @@ define(function () {
     var args = arguments;
 
     return text.replace(/\?/g, function () {
-
       var val = args[i++];
-
-      // http://jsperf.com/type-of-undefined-vs-undefined/9
-      return (val === void 0) ? '' : val;
+      return (val === undefined) ? '' : val;
     });
   };
 });

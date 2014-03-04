@@ -110,7 +110,7 @@ define([
           type = fields[name];
           value = data[name];
 
-          if (value !== void 0) {
+          if (value !== undefined) {
             if (type === FieldTypes.Integer) {
               parsed = parseInt(value, 10);
               if (isNaN(value)) {
@@ -271,7 +271,7 @@ define([
         type = fields[name];
         value = json[name];
 
-        if (value !== void 0 && name !== keyPath) {
+        if (value !== undefined && name !== keyPath) {
 
           if (type === FieldTypes.Float || type === FieldTypes.Integer) {
             value = (!!value && !isNaN(value)) ? value : 0;
