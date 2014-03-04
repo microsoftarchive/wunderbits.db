@@ -4,453 +4,321 @@ define([
 
   'wunderbits/core/WBEventEmitter',
   'wunderbits/core/WBDeferred',
-  'wunderbits/core/When',
 
-  'wunderbits/core/lib/forEach',
-  'wunderbits/core/lib/size'
+  'wunderbits/core/When',
+  'wunderbits/core/lib/toArray'
 
 ], function (
   global,
-  WBEventEmitter, WBDeferred, when,
-  forEach, size,
+  WBEventEmitter, WBDeferred,
+  when, toArray,
   undefined
 ) {
 
   'use strict';
 
-  var chrome = global.chrome;
-  var isChromeApp = !!(chrome && chrome.app && chrome.app.runtime);
-
-  var dbDeferred = new WBDeferred();
-
   var defaultKeyPath = 'id';
-  var isTruncating = false;
-  var DB, storeFieldMap, infoLog, errorLog;
-  var dbVersion, dbName;
-  var migrationData = {};
-  var upgrading = false;
 
-  // We are using indexeddb synchronously
+  var DOMError = global.DOMError || global.DOMException;
   var indexedDB = global.indexedDB || global.webkitIndexedDB || global.mozIndexedDB || global.msIndexedDB;
 
-  var IDBTransactionModes = {
-    'read': 'readonly',
-    'write': 'readwrite'
+  var TransactionModes = {
+    'READ': 'readonly',
+    'WRITE': 'readwrite'
   };
 
-  // break the stack & give UI some time to breath
-  // IE & FF don't like long running scripts
-  function nextTick () {
-    var args = [].slice.call(arguments);
-    var next = args.shift();
-    global.setTimeout(function () {
-      next.apply(null, args);
-    }, 10);
-  }
+  var IndexedDBBackend = WBEventEmitter.extend({
 
-  // helper to loop through stores
-  function mapStores (iterator) {
-    var result = [];
-    var stores = Object.keys(storeFieldMap);
-    forEach(stores, function (storeName, index) {
-      result[index] = iterator(storeName, storeFieldMap[storeName]);
-    });
-    return result;
-  }
+    'initialize': function () {
 
-  // Create Object Store with a keypath
-  function createStore (storeName, db) {
+      var self = this;
+      self.ready = new WBDeferred();
+    },
 
-    var deferred = new WBDeferred();
+    'connect': function (options) {
 
-    try {
-      var createReq = db.createObjectStore(storeName, {
-        'keyPath': storeFieldMap[storeName].keyPath || defaultKeyPath
-      });
-      createReq.onsuccess = function () {
-        deferred.resolve();
-      };
-    }
-    catch (e) {
-      // can not create stores if they already exist,
-      // just resolve this request and move on
-      deferred.resolve();
-    }
+      var self = this;
+      self.stores = options.stores;
+      self.openDB(options.name, options.version);
+      return self.ready.promise();
+    },
 
-    return deferred.promise();
-  }
+    'openDB': function (name, version) {
 
-  function clearStore (storeName) {
+      var self = this;
 
-    var deferred = new WBDeferred();
-    var transaction = DB.transaction([storeName], IDBTransactionModes.write);
-    var store = transaction.objectStore(storeName);
-    var clearRequest = store.clear();
+      var openRequest = indexedDB.open(name, version);
+      openRequest.onerror = self.onRequestError.bind(self);
+      openRequest.onsuccess = self.onRequestSuccess.bind(self);
+      openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    },
 
-    clearRequest.onsuccess = function () {
-      deferred.resolve();
-    };
+    'onRequestError': function (event) {
 
-    clearRequest.onerror = function (e) {
-      console.error(e);
-      deferred.resolve();
-    };
+      var self = this;
+      var error = event.target.error;
+      var errorName = error.name;
+      var isDOMError = (error instanceof DOMError);
 
-    return deferred.promise();
-  }
-
-  // Clear all object stores
-  function truncate (callback) {
-
-    isTruncating = true;
-
-    var deferreds = mapStores(clearStore);
-
-    when(deferreds).then(function () {
-
-      isTruncating = false;
-      if (typeof callback === 'function') {
-        callback();
+      if (errorName === 'InvalidStateError' && isDOMError) {
+        self.openFailure('ERR_FIREFOX_PRIVATE_MODE');
       }
-
-      self.trigger('truncated');
-    });
-  }
-
-  function _upgradeNeeded (e) {
-
-    upgrading = true;
-    infoLog('upgrade needed');
-    self.publish('upgraded');
-
-    var db = e.target.result.db || e.target.result;
-
-    var createDeferreds = mapStores(function (storeName) {
-      return createStore(storeName, db);
-    });
-
-    when(createDeferreds).then(function () {
-
-      db.close();
-
-      var versionlessDbOpenReq;
-      try {
-        versionlessDbOpenReq = indexedDB.open(dbName);
-        versionlessDbOpenReq.onerror = handleIDBOpenError;
+      else if (errorName === 'VersionError' && isDOMError) {
+        self.openFailure('ERR_CANT_DOWNGRADE_VERSION');
       }
-      catch (e) {
-        handleIDBOpenError();
+      else {
+        self.openFailure('ERR_UNKNOWN', error);
+      }
+    },
+
+    'onRequestSuccess': function (event) {
+
+      var self = this;
+      if (self.db) {
+        self.openSuccess();
         return;
       }
 
-      // Migrate data from older version of the database
-      versionlessDbOpenReq.onsuccess = function (e) {
+      var db = event.target.result;
+      if (typeof db.version == 'string'){
+        self.openFailure('ERR_UPGRADE_BROWSER');
+        return;
+      }
 
-        var _db = e.target.result.db || e.target.result;
+      self.db = db;
+      self.storeNames = db.objectStoreNames;
+      self.openSuccess();
+    },
 
-        var writeDeferreds = mapStores(function (storeName) {
-          return writeMigrations(storeName, _db);
+    'onUpgradeNeeded': function (event) {
+
+      var self = this;
+      var db = event.target.result;
+      self.db = db;
+      self.storeNames = db.objectStoreNames;
+
+      self.trigger('upgrading');
+
+      var storeCreatePromises = self.mapStores(self.createStore);
+      when(storeCreatePromises).done(self.openSuccess, self);
+    },
+
+    'openSuccess': function () {
+
+      var self = this;
+      self.trigger('connected');
+      self.ready.resolve();
+    },
+
+    'openFailure': function (code, error) {
+
+      var self = this;
+      self.trigger('error', code, error);
+      self.ready.reject();
+    },
+
+    // helper to loop through stores
+    'mapStores': function (iterator) {
+
+      var self = this;
+      var results = [];
+      var stores = self.stores;
+      var storeNames = Object.keys(stores);
+      var result, storeName, storeInfo;
+
+      while (storeNames.length) {
+        storeName = storeNames.shift();
+        storeInfo = stores[storeName];
+        result = iterator.call(self, storeName, storeInfo);
+        results.push(result);
+      }
+
+      return results;
+    },
+
+    'createStore': function (storeName, storeInfo) {
+
+      var self = this;
+      var db = self.db;
+
+      var deferred = new WBDeferred();
+
+      // create store, only if doesn't already exist
+      if (!self.storeNames.contains(storeName)) {
+        var createRequest = db.createObjectStore(storeName, {
+          'keyPath': storeInfo.keyPath || defaultKeyPath
         });
 
-        if (writeDeferreds.length) {
-          when(writeDeferreds).then(_dbReady, undefined, _db);
+        createRequest.onsuccess = function () {
+          deferred.resolve();
+        };
+      }
+      // can not create stores if they already exist,
+      // just resolve this request and move on
+      else {
+        deferred.resolve();
+      }
+
+      return deferred.promise();
+    },
+
+    'clearStore': function (storeName) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var store = transaction.objectStore(storeName);
+
+      var request = store.clear();
+
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
+
+      request.onerror = function (error) {
+        self.trigger('error', 'ERR_STORE_CLEAR_FAILED', error, storeName);
+        deferred.reject();
+      };
+
+      return deferred.promise();
+    },
+
+    'truncate': function (callback) {
+
+      var self = this;
+
+      // pause all DB operations
+      var deferred = self.ready = new WBDeferred();
+
+      var storeClearPromises = self.mapStores(self.clearStore);
+      when(storeClearPromises).then(function () {
+
+        // reject all DB operations
+        deferred.reject();
+
+        // LEGACY: remove this
+        if (typeof callback === 'function') {
+          callback();
+        }
+
+        self.trigger('truncated');
+      });
+    },
+
+    'read': function (storeName, json) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var transaction = self.db.transaction([storeName], TransactionModes.READ);
+      var store = transaction.objectStore(storeName);
+      var id = json[store.keyPath || defaultKeyPath] || json.id;
+
+      var request = store.get(id);
+
+      request.onsuccess = function (event) {
+        var json = event.target.result;
+        if (json) {
+          deferred.resolve(json);
         }
         else {
-          _dbReady(_db);
+          self.trigger('error', 'ERR_OBJECT_NOT_FOUND', null, storeName, json);
+          deferred.reject();
         }
       };
 
-    });
-  }
+      request.onerror = function (error) {
+        self.trigger('error', 'ERR_STORE_GET_FAILED', error, storeName, json);
+        deferred.reject();
+      };
 
-  function _dbReady (db) {
+      return deferred.promise();
+    },
 
-    DB = db;
-    infoLog('DB ready');
-    // clean this up if no upgraded needed
-    migrationData && (migrationData = null);
-    global.setTimeout(function () {
-      dbDeferred.resolve();
-    }, 100);
-  }
+    'query': function (storeName) {
 
-  function handleIDBOpenError (e) {
-
-    // Scum bag user refused IDB storage or in private mode
-    // Force memory mode
-    if(!isChromeApp) {
-      infoLog('switching to memory', e);
-      self.trigger('analytics:db:memoryFallback', 'indexeddb');
-      global.localStorage.setItem('availableBackend', 'memory');
-      global.localStorage.setItem('dbVersion', '' + dbVersion);
-      global.location.reload();
-    }
-  }
-
-  function readStoreForMigration (storeName, db) {
-
-    infoLog('reading ' + storeName);
-
-    var deferred = new WBDeferred();
-    try {
-      query(storeName, {
-        'db': db,
-        'success': function (data) {
-
-          // try catch block, because if upgrade is not needed
-          // _dbready will null out the migration data object as it is no longer needed
-          // the async read transations will still execute
-          try {
-            migrationData[storeName] = data;
-          }
-          catch (e) {
-            // infoLog(e);
-          }
-          deferred.resolve();
-        }
-      });
-    }
-    catch (e) {
-      infoLog(e);
-      deferred.resolve();
-    }
-
-    return deferred.promise();
-  }
-
-  function writeMigrations (storeName, db) {
-
-    function write (data) {
-
+      var self = this;
       var deferred = new WBDeferred();
-      update(storeName, data, {
-        'db': db,
-        'success': function () {
-          deferred.resolve();
-        },
-        'error': function () {
-          deferred.resolve();
-        }
-      });
+
+      var transaction = self.db.transaction([storeName], TransactionModes.READ);
+      var store = transaction.objectStore(storeName);
+      var elements = [];
+
+      var readCursor = store.openCursor();
+
+      if (!readCursor) {
+        self.trigger('error', 'ERR_CANT_OPEN_CURSOR', null, storeName);
+        deferred.reject();
+      }
+      else {
+        readCursor.onerror = function (error) {
+          self.trigger('error', 'ERR_CURSOR_ERROR', error, storeName);
+          deferred.reject();
+        };
+
+        readCursor.onsuccess = function (e) {
+
+          var cursor = e.target.result;
+          // We're done. No more elements.
+          if (!cursor) {
+            deferred.resolve(elements);
+          }
+          // We have more records to process
+          else {
+            elements.push(cursor.value);
+            cursor['continue']();
+          }
+        };
+      }
+
+      return deferred.promise();
+    },
+
+    'update': function (storeName, json) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var store = transaction.objectStore(storeName);
+
+      var request = store.put(json);
+
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
+
+      request.onerror = function (error) {
+        self.trigger('error', 'ERR_STORE_UPDATE_FAILED', error, storeName, json);
+        deferred.reject();
+      };
+
+      return deferred.promise();
+    },
+
+    'destroy': function (storeName, json) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var transaction = self.db.transaction([storeName], TransactionModes.WRITE);
+      var store = transaction.objectStore(storeName);
+      var id = json[store.keyPath || defaultKeyPath] || json.id;
+
+      var request = store['delete'](id);
+
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
+
+      request.onerror = function (error) {
+        self.trigger('error', 'ERR_STORE_DESTROY_FAILED', error, storeName, json);
+        deferred.reject();
+      };
 
       return deferred.promise();
     }
-
-    infoLog(storeName, ' migrationData:', typeof migrationData, size(migrationData));
-    if (migrationData && migrationData[storeName]) {
-
-      infoLog('writing ' + storeName);
-
-      // WRITE ANY STORED MIGRATION DATAS
-      var toMigrate = migrationData[storeName];
-      delete migrationData[storeName];
-      var writeDeferreds = [];
-      forEach(toMigrate, function (data) {
-        writeDeferreds.push(write(data));
-      });
-      return when(writeDeferreds);
-    }
-
-    return (new WBDeferred()).resolve();
-  }
-
-  function connect (options) {
-
-    storeFieldMap = options.stores;
-    infoLog = options.infoLog;
-    errorLog = options.errorLog;
-    dbVersion = options.version;
-    dbName = options.name;
-
-    var promise = dbDeferred.promise();
-
-    // PESUDO MIGRATION - JUST GET AND DUMP EXISTING DATA
-    var versionLessDeferred = new WBDeferred();
-    // OPEN VERSIONLESS DATABASE TO GET A READABLE TRANSACTION
-    var versionlessDbOpenReq;
-    try {
-      versionlessDbOpenReq = indexedDB.open(dbName);
-      versionlessDbOpenReq.onerror = handleIDBOpenError;
-    }
-    catch (e) {
-      handleIDBOpenError();
-      return promise;
-    }
-    // READ ALL EXISTENT DATA
-    versionlessDbOpenReq.onsuccess = function (e) {
-
-      var db = e.target.result;
-
-      var readDeferreds = mapStores(function (storeName) {
-        return readStoreForMigration(storeName, db);
-      });
-
-      when(readDeferreds).then(function () {
-
-        // CLOSE VERSIONLESS DATABASE
-        db.close();
-        versionLessDeferred.resolve();
-      });
-    };
-
-    versionLessDeferred.then(function () {
-      // OPEN DATABASE WITH VERSION INFO
-      // IE10 requires integer, FF requires float, W.T.F.
-      var openArgs = [dbName];
-      if (indexedDB === global.msIndexedDB) {
-        dbVersion = parseInt(dbVersion, 10);
-      }
-      openArgs.push(dbVersion);
-
-      var dbOpenReq;
-      try {
-        dbOpenReq = indexedDB.open.apply(indexedDB, openArgs);
-        dbOpenReq.onerror = handleIDBOpenError;
-      }
-      catch (e) {
-        handleIDBOpenError();
-        return promise;
-      }
-
-      dbOpenReq.onsuccess = function (e) {
-
-        var db = e.target.result;
-        setTimeout(function () {
-
-          // ie10 fires both upgrade needed and success at the same time,
-          // so, if we are performing an upgrade,
-          // the upgrade handler should resolve db ready
-          if (!upgrading) {
-            _dbReady(db);
-          }
-        }, 50);
-      };
-
-      dbOpenReq.onupgradeneeded = _upgradeNeeded;
-      dbOpenReq.onblocked = errorLog;
-
-      // Comment back in if FF is memory leaking again
-      // WBRuntime.on('window:unload', function() {
-
-      //   dbDeferred.then(function() {
-
-      //     DB.close();
-      //   });
-      // }, false);
-
-    });
-
-    return promise;
-  }
-
-
-  var errorMsg = 'failed reading from the database';
-  function query (storeName, options) {
-
-    var _db = options.db || DB;
-
-    var readTransaction = _db.transaction([storeName], IDBTransactionModes.read);
-    //readTransaction.oncomplete = infoLog;
-    var store = readTransaction.objectStore(storeName);
-    var elements = [];
-    var readCursor = store.openCursor();
-
-    if (readCursor === undefined || !readCursor) {
-
-      errorLog(errorMsg);
-      options.error(errorMsg);
-    }
-    else {
-
-      readCursor.onerror = errorLog;
-      readCursor.onsuccess = function (e) {
-
-        var cursor = e.target.result;
-
-        if (!cursor) {
-          // We're done. No more elements.
-          nextTick(options.success, elements);
-        }
-        else {
-          // We have more records to process
-          elements.push(cursor.value);
-          cursor['continue']();
-        }
-      };
-    }
-  }
-
-  function read (storeName, json, options) {
-
-    var _db = options.db || DB;
-
-    var readTransaction = _db.transaction([storeName], IDBTransactionModes.read);
-    //readTransaction.oncomplete = infoLog;
-    var store = readTransaction.objectStore(storeName);
-    var keyPath = store.keyPath || defaultKeyPath;
-    var id = json[keyPath] || json.id;
-    var getRequest = store.get(id);
-
-    getRequest.onerror = errorLog;
-    getRequest.onsuccess = function (e) {
-
-      var json = e.target.result;
-      if (json) {
-        nextTick(options.success, json);
-      }
-      else {
-        nextTick(options.error, 'object not Found');
-      }
-    };
-  }
-
-  function update (storeName, json, options) {
-
-    var _db = options.db || DB;
-
-    if (isTruncating) {
-      return;
-    }
-
-    // wrap writes in try catch to handle invalid transaction states
-    try {
-      var writeTransaction = _db.transaction([storeName], IDBTransactionModes.write);
-      var store = writeTransaction.objectStore(storeName);
-      var writeRequest = store.put(json);
-
-      writeRequest.onerror = errorLog;
-      writeRequest.onsuccess = function () {
-        nextTick(options.success);
-      };
-    }
-    catch (e) {
-      errorLog(e, json);
-    }
-  }
-
-  function destroy (storeName, json, options) {
-
-    var writeTransaction = DB.transaction([storeName], IDBTransactionModes.write);
-    // writeTransaction.oncomplete = infoLog;
-    var store = writeTransaction.objectStore(storeName);
-    var keyPath = store.keyPath || defaultKeyPath;
-    var id = json[keyPath] || json.id;
-    var deleteRequest = store['delete'](id);
-
-    deleteRequest.onerror = errorLog;
-    deleteRequest.onsuccess = function () {
-
-      nextTick(options.success);
-    };
-  }
-
-  var IndexedDBBackend = WBEventEmitter.extend({
-    'connect': connect,
-    'truncate': truncate,
-    'read': read,
-    'query': query,
-    'update': update,
-    'destroy': destroy
   });
 
   var self = new IndexedDBBackend();
