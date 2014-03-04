@@ -99,8 +99,7 @@ define([
 
       self.trigger('upgrading');
 
-      var storeCreatePromises = self.mapStores(self.createStore);
-      when(storeCreatePromises).done(self.openSuccess, self);
+      self.mapStores(self.createStore);
     },
 
     'openSuccess': function () {
@@ -141,25 +140,12 @@ define([
       var self = this;
       var db = self.db;
 
-      var deferred = new WBDeferred();
-
       // create store, only if doesn't already exist
       if (!self.storeNames.contains(storeName)) {
-        var createRequest = db.createObjectStore(storeName, {
+        db.createObjectStore(storeName, {
           'keyPath': storeInfo.keyPath || defaultKeyPath
         });
-
-        createRequest.onsuccess = function () {
-          deferred.resolve();
-        };
       }
-      // can not create stores if they already exist,
-      // just resolve this request and move on
-      else {
-        deferred.resolve();
-      }
-
-      return deferred.promise();
     },
 
     'clearStore': function (storeName) {
