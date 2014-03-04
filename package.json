@@ -1,0 +1,24 @@
+{
+  "name": "wunderbits.db",
+  "version": "0.0.0",
+  "description": "Data storage for the browser",
+  "scripts": {
+    "test": "grunt lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wunderlist/wunderbits.db.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wunderlist/wunderbits.db/issues"
+  },
+  "homepage": "http://wunderlist.github.io/wunderbits.db",
+  "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-complexity": "~0.1.4",
+    "grunt-contrib-jshint": "~0.8.0",
+    "kaapi": "~0.1.5",
+    "kaapi.coverage": "0.0.2"
+  }
+}

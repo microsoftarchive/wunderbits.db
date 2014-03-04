@@ -1,0 +1,20 @@
+{
+  "public": {
+    "src": [
+      "Gruntfile.js",
+      "public/**/*.js",
+      "!public/wunderbits/core/**/*.js"
+    ],
+    "options": {
+      "jshintrc": "public/.jshintrc"
+    }
+  },
+  "specs": {
+    "src": [
+      "specs/**/*.js"
+    ],
+    "options": {
+      "jshintrc": "specs/.jshintrc"
+    }
+  }
+}
