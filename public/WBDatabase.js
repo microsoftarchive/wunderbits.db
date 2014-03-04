@@ -131,14 +131,32 @@ define([
       var self = this;
       var backend = self.backend;
 
-      // export crud functions
-      extend(self.crud, {
+      var crudOps = {
         'create': backend.update,
         'read':   backend.read,
         'update': backend.update,
         'delete': backend.destroy,
         'query':  backend.query
+      };
+
+      // bind crud operations to the backend for context
+      // also block all DB operations till db is ready
+      Object.keys(crudOps).forEach(function (key) {
+        var fn = crudOps[key];
+        crudOps[key] = function () {
+          var args = arguments;
+          var deferred = new WBDeferred();
+          backend.ready.done(function () {
+            fn.apply(backend, args)
+              .done(deferred.resolve, deferred)
+              .fail(deferred.reject, deferred);
+          }).fail(deferred.reject, deferred);
+          return deferred.promise();
+        };
       });
+
+      // export crud functions
+      extend(self.crud, crudOps);
 
       // announce once backend is ready
       self.ready.resolve();
