@@ -62,8 +62,14 @@ define([
 
       var schema = options.schema;
       self.stores = schema.stores;
-      self.name = schema.database.name;
-      self.version = schema.database.version;
+
+      var database = schema.database;
+      self.name = database.name;
+
+      // make version change with schema
+      var version = (Object.keys(self.stores).length * 10e6);
+      version += (parseInt(database.version, 10) || 1);
+      self.version = version;
     },
 
     'init': function (backendName) {
@@ -85,7 +91,7 @@ define([
       // try to init the available backend
       self.initBackend(backendName, {
         'name': self.name,
-        'version': self.version + (size(stores) / 100),
+        'version': self.version,
         'stores': stores,
         'infoLog': loggers.info,
         'errorLog': loggers.error,
