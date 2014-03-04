@@ -206,9 +206,8 @@ define([
       var self = this;
       self.ready.done(function () {
 
-        self.backend.query(storeName, {
-          'success': callback
-        });
+        var request = self.backend.query(storeName);
+        request.done(callback);
       });
     },
 

@@ -82,17 +82,22 @@ define([
           }
         };
 
+        var request;
+        var crud = self.database.crud;
+
         // query collections
         if (method === 'read' && !instance.id && instance.model) {
           storeName || (storeName = instance.model.prototype.storeName);
-          self.database.crud.query(storeName, options);
+          request = crud.query(storeName);
         }
         // regular models
         else {
           var json = typeof instance.toJSON === 'function' ? instance.toJSON() : clone(instance.attributes);
           json.id || (json.id = instance.id);
-          self.database.crud[method](storeName, json, options);
+          request = crud[method](storeName, json);
         }
+
+        request.done(options.success).fail(options.error);
       }
     }
   });
