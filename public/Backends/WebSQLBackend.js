@@ -27,8 +27,8 @@ define([
   var escape = global.escape;
   var unescape = global.unescape;
 
+  var dbSize = (5 * 1024 * 1024);
   var defaultKeyPath = 'id';
-  var isTruncating = false;
   var DB, storeFieldMap, infoLog, errorLog;
 
   var migrationData = {};
@@ -46,7 +46,8 @@ define([
   /**
    * Execute SQL
    * @param sql - sql string or template
-   * other arguments are used for rendering templates & last argument if a function, is used for callback
+   * other arguments are used for rendering templates
+   * & last argument if a function, is used for callback
    */
   function _execute (sql) {
 
@@ -210,47 +211,60 @@ define([
 
 
   var querySQL = 'SELECT * from ?';
-  function query (storeName, options) {
+  function query (storeName) {
 
-    var fields = storeFieldMap[storeName] && storeFieldMap[storeName].fields;
+    var deferred = new WBDeferred();
 
-    _execute(querySQL, storeName, function queryExecuteCallback (err, result) {
+    var storeInfo = storeFieldMap[storeName];
+    var fields = storeInfo && storeInfo.fields;
 
-      if (err) {
-        throw err;
+    _execute(querySQL, storeName, function (error, result) {
+
+      if (error) {
+        self.trigger('error', 'ERR_QUERY_FAILED', error, storeName);
+        deferred.reject();
       }
-
-      options.success(_resultToArray(result, fields));
+      else {
+        var elements = _resultToArray(result, fields);
+        deferred.resolve(elements);
+      }
     });
+
+    return deferred.promise();
   }
 
   var readSQL = 'SELECT * from ? WHERE ?=\'?\' LIMIT 1';
-  function read (storeName, json, options) {
+  function read (storeName, json) {
+
+    var deferred = new WBDeferred();
 
     var fields = storeFieldMap[storeName].fields;
     var keyPath = storeFieldMap[storeName].keyPath || defaultKeyPath;
     var id = json[keyPath] || json.id;
 
-    _execute(readSQL, storeName, keyPath, id, function readExecuteCallback (err, result) {
+    _execute(readSQL, storeName, keyPath, id, function (error, result) {
 
-      if (err) {
-        options.error(err);
+      if (error) {
+        self.trigger('error', 'ERR_READ_FAILED', error, storeName, json);
+        deferred.reject();
       }
       else if (result.rows.length === 0) {
-        options.error('object not found');
+        self.trigger('error', 'ERR_NOT_FOUND', error, storeName, json);
+        deferred.reject();
       }
       else {
-        options.success(_resultToArray(result, fields)[0]);
+        var elements = _resultToArray(result, fields);
+        deferred.resolve(elements[0]);
       }
     });
+
+    return deferred.promise();
   }
 
   var upsertSQL = 'INSERT OR REPLACE INTO ? (?) VALUES (?)';
-  function update (storeName, json, options) {
+  function update (storeName, json) {
 
-    if (isTruncating) {
-      return;
-    }
+    var deferred = new WBDeferred();
 
     var keyPath = storeFieldMap[storeName].keyPath || defaultKeyPath;
     var id = json[keyPath] || json.id;
@@ -294,41 +308,52 @@ define([
 
     try {
 
-      _execute(upsertSQL, storeName, keys.join(', '), values.join(', '), function updateExecuteCallback (err) {
+      keys = keys.join(', ');
+      values = values.join(', ');
+      _execute(upsertSQL, storeName, keys, values, function (error) {
 
-        if (err) {
-          errorLog(err);
-          options.error(err);
+        if (error) {
+          self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+              error, storeName, json);
+          deferred.reject();
         }
         else {
-          options.success();
+          deferred.resolve();
         }
       });
     }
     catch (e) {
-      errorLog(e);
+      deferred.reject();
     }
+
+    return deferred.promise();
   }
 
   var deleteSQL = 'DELETE FROM ? WHERE ?=\'?\'';
-  function destroy (storeName, json, options) {
+  function destroy (storeName, json) {
+
+    var deferred = new WBDeferred();
 
     var keyPath = storeFieldMap[storeName].keyPath || defaultKeyPath;
     var id = json[keyPath] || json.id;
 
-    _execute(deleteSQL, storeName, keyPath, id, function destroyExecuteCallback (err) {
+    _execute(deleteSQL, storeName, keyPath, id, function (error) {
 
-      if (err) {
-        options.error('failed deleting');
+      if (error) {
+        self.trigger('error', 'ERR_STORE_DESTROY_FAILED',
+            error, storeName, json);
+        deferred.reject();
       }
       else {
-        options.success();
+        deferred.resolve();
       }
     });
+
+    return deferred.promise();
   }
 
   var deleteAllSQL = 'DROP TABLE IF EXISTS ?';
-  function _emptyTable (storeName) {
+  function clearStore (storeName) {
 
     var deferred = new WBDeferred();
 
@@ -345,22 +370,23 @@ define([
   // Clean up the DB
   function truncate (callback) {
 
-    isTruncating = true;
-
+    // pause all DB operations
     var deferred = new WBDeferred();
+    self.ready = new WBDeferred();
 
-    var deferreds = mapStores(_emptyTable);
+    var storeClearPromises = mapStores(clearStore);
+    when(storeClearPromises).then(function () {
 
-    when(deferreds).done(function () {
-
-      isTruncating = false;
-
+      // reject all DB operations
+      self.ready.reject();
       deferred.resolve();
-      (typeof callback === 'function') && callback();
-      self.trigger('truncated');
-    }).fail(function () {
 
-      deferred.reject();
+      // LEGACY: remove this
+      if (typeof callback === 'function') {
+        callback();
+      }
+
+      self.trigger('truncated');
     });
 
     return deferred.promise();
@@ -368,10 +394,10 @@ define([
 
   function _getTables () {
 
-    var tablesSQL = "SELECT * FROM sqlite_master WHERE type='table'";
+    var tablesSQL = 'SELECT * FROM sqlite_master WHERE type=\'table\'';
     var tablesDeferred = new WBDeferred();
 
-    _execute(tablesSQL, function getTablesExecuteCallback (err, result) {
+    _execute(tablesSQL, function (err, result) {
 
       if (err) {
         tablesDeferred.reject();
@@ -425,7 +451,7 @@ define([
     infoLog = options.infoLog;
     errorLog = options.errorLog;
 
-    var dbDeferred = new WBDeferred();
+    var dbDeferred = self.ready;
 
     // in the event that safari is broken after an update
     var initTimeout = setTimeout(function () {
@@ -440,7 +466,7 @@ define([
 
     try {
       // Safari needs the DB to initialized with **exactly** 5 mb storage
-      DB = global.openDatabase(options.name, '', options.name, (5 * 1024 * 1024));
+      DB = global.openDatabase(options.name, '', options.name, dbSize);
     }
     catch (e) {
       console.warn(e);
@@ -585,7 +611,21 @@ define([
   }
 
   var WebSQLBackend = WBEventEmitter.extend({
-    'connect': connect,
+
+    'initialize': function () {
+
+      var self = this;
+      self.ready = new WBDeferred();
+    },
+
+    'connect': function (options) {
+
+      var self = this;
+      self.stores = options.stores;
+      connect(options);
+      return self.ready.promise();
+    },
+
     'truncate': truncate,
     'read': read,
     'query': query,

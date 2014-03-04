@@ -186,7 +186,8 @@ define([
       }
 
       // IF this check has been run previously, load from localStorage
-      // But, don't break the app if local storage is not available (disabled by the user)!
+      // But, don't break the app if local storage is not available
+      // (disabled by the user)!
       try {
         // throws exception in chrome when cookies are disabled
         var availableBackend = global.localStorage.getItem('availableBackend');
@@ -199,7 +200,9 @@ define([
         // Use memory
         localStorageAvailable = false;
         return 'memory';
-        //document.write('HTML5 local storage (controlled by your cookie settings) is required in order use wunderlist.');
+        //document.write('HTML5 local storage ' +
+        //  '(controlled by your cookie settings) ' +
+        //  'is required in order use wunderlist.');
       }
 
       // Test for available storage options, but use memory backend for tests
@@ -240,7 +243,7 @@ define([
           localStorageAvailable && global.localStorage.clear();
         }
 
-        self.backend.truncate(callback);
+        self.backend.truncate().then(callback);
       });
     }
   });

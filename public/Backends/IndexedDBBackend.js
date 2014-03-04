@@ -178,13 +178,15 @@ define([
       var self = this;
 
       // pause all DB operations
-      var deferred = self.ready = new WBDeferred();
+      var deferred = new WBDeferred();
+      self.ready = new WBDeferred();
 
       var storeClearPromises = self.mapStores(self.clearStore);
       when(storeClearPromises).then(function () {
 
         // reject all DB operations
-        deferred.reject();
+        self.ready.reject();
+        deferred.resolve();
 
         // LEGACY: remove this
         if (typeof callback === 'function') {
@@ -193,6 +195,8 @@ define([
 
         self.trigger('truncated');
       });
+
+      return deferred.promise();
     },
 
     'read': function (storeName, json) {
@@ -242,7 +246,7 @@ define([
       }
       else {
         readCursor.onerror = function (error) {
-          self.trigger('error', 'ERR_CURSOR_ERROR', error, storeName);
+          self.trigger('error', 'ERR_QUERY_FAILED', error, storeName);
           deferred.reject();
         };
 

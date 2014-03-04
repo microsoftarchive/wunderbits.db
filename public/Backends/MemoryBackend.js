@@ -19,23 +19,30 @@ define([
 
   'use strict';
 
-  var isTruncating = false;
-  var cache, storeFieldMap, dbDeferred, infoLog, localStorageAvailable;
+  var indexedDB = global.indexedDB ||
+                  global.webkitIndexedDB ||
+                  global.mozIndexedDB ||
+                  global.msIndexedDB;
+  var cache, storeFieldMap, infoLog, localStorageAvailable;
 
   function connect (options) {
 
     infoLog = options.infoLog;
     localStorageAvailable = options.localStorageAvailable;
 
-    // On every version change, clear out the localStorage & try again for a better backend
+    // On every version change,
+    // clear out the localStorage &
+    // try again for a better backend
     if (localStorageAvailable) {
       var store = global.localStorage;
-      var indexedDB = global.indexedDB || global.webkitIndexedDB || global.mozIndexedDB || global.msIndexedDB;
-      if (store.getItem('availableBackend') === 'memory' && store.getItem('dbVersion') !== '' + options.version) {
+      if (store.getItem('availableBackend') === 'memory' &&
+          store.getItem('dbVersion') !== '' + options.version) {
+
         // clear localStorage
         store.clear();
+
         // If IDB is available, clear that too
-        if(indexedDB) {
+        if (indexedDB) {
           var transaction = indexedDB.deleteDatabase(options.name);
           // Wait till the database is deleted before reloading the app
           transaction.onsuccess = transaction.onerror = function() {
@@ -49,88 +56,78 @@ define([
       }
     }
 
-    dbDeferred = new WBDeferred();
-
     storeFieldMap = options.stores;
 
     !cache && reset();
-    dbDeferred.resolve();
-
     infoLog('db ready');
 
-    return dbDeferred.promise();
+    self.ready.resolve();
   }
 
-  function read (storeName, json, options) {
+  function read (storeName, json) {
 
-    dbDeferred.then(function() {
+    var deferred = new WBDeferred();
 
-      var val;
-      var meta = storeFieldMap[storeName];
+    var val;
+    var meta = storeFieldMap[storeName];
 
-      if (localStorageAvailable && meta.critical) {
-        var id = json[meta.keyPath] || json.id;
-        val = global.localStorage[storeName + '_' + id];
-        val && (val = SafeParse.json(val));
-      }
-      else {
-        val = cache[storeName][json.id];
-      }
-
-      setTimeout(function () {
-
-        if (val !== undefined) {
-          (typeof options.success === 'function') && options.success(val);
-        }
-        else {
-          (typeof options.error === 'function') && options.error(val);
-        }
-      }, 50);
-    });
-  }
-
-  function query (storeName, options) {
-
-    dbDeferred.then(function() {
-
-      options.success(toArray(cache[storeName]));
-    });
-  }
-
-  function update (storeName, json, options) {
-
-    if (isTruncating) {
-      return;
+    if (localStorageAvailable && meta.critical) {
+      var id = json[meta.keyPath] || json.id;
+      val = global.localStorage[storeName + '_' + id];
+      val && (val = SafeParse.json(val));
+    }
+    else {
+      val = cache[storeName][json.id];
     }
 
-    dbDeferred.then(function () {
+    setTimeout(function () {
 
-      var meta = storeFieldMap[storeName];
-
-      if (localStorageAvailable && meta.critical) {
-        var id = json[meta.keyPath] || json.id;
-        global.localStorage[storeName + '_' + id] = JSON.stringify(json);
+      if (val !== undefined) {
+        deferred.resolve(val);
       }
       else {
-        cache[storeName][json.id] = json;
+        deferred.reject();
       }
+    }, 50);
 
-      options.success();
-    });
+    return deferred.promise();
   }
 
-  function destroy (storeName, json, options) {
+  function query (storeName) {
 
-    dbDeferred.then(function() {
+    var deferred = new WBDeferred();
+    var results = toArray(cache[storeName]);
+    return deferred.resolve(results).promise();
+  }
 
-      options.success(delete cache[storeName][json.id]);
-    });
+  function update (storeName, json) {
+
+    var deferred = new WBDeferred();
+
+    var meta = storeFieldMap[storeName];
+
+    if (localStorageAvailable && meta.critical) {
+      var id = json[meta.keyPath] || json.id;
+      global.localStorage[storeName + '_' + id] = JSON.stringify(json);
+    }
+    else {
+      cache[storeName][json.id] = json;
+    }
+
+    return deferred.resolve().promise();
+  }
+
+  function destroy (storeName, json) {
+
+    var deferred = new WBDeferred();
+    delete cache[storeName][json.id];
+    return deferred.resolve().promise();
   }
 
   function reset () {
 
     cache = {};
-    forEach(storeFieldMap, function(metaData, storeName) {
+    forEach(storeFieldMap, function (metaData, storeName) {
 
       cache[storeName] = {};
     });
@@ -138,24 +135,45 @@ define([
 
   function truncate (callback) {
 
-    isTruncating = true;
+    var deferred = new WBDeferred();
+    self.ready = new WBDeferred();
 
     reset();
     localStorageAvailable && global.localStorage.clear();
 
-    isTruncating = false;
-
     setTimeout(function () {
 
-      (typeof callback === 'function') && callback();
+      // reject all DB operations
+      self.ready.reject();
+      deferred.resolve();
+
+      // LEGACY: remove this
+      if (typeof callback === 'function') {
+        callback();
+      }
+
       self.trigger('truncated');
     }, 50);
 
-    return (new WBDeferred()).resolve();
+    return deferred.promise();
   }
 
   var MemoryBackend = WBEventEmitter.extend({
-    'connect': connect,
+
+    'initialize': function () {
+
+      var self = this;
+      self.ready = new WBDeferred();
+    },
+
+    'connect': function (options) {
+
+      var self = this;
+      self.stores = options.stores;
+      connect(options);
+      return self.ready.promise();
+    },
+
     'truncate': truncate,
     'read': read,
     'query': query,
