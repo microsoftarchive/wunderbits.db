@@ -57,7 +57,7 @@ define([
 
       // in case safari is broken after an update
       var initTimeout = setTimeout(function () {
-        self.openFailure('ERR_WEBSQL_TIMEOUT');
+        self.openFailure('ERR_WS_CONNECT_TIMEOUT');
       }, 2000);
 
       readyDeferred.done(function () {
@@ -83,7 +83,7 @@ define([
           self.openSuccess();
         }
       } catch (error) {
-        self.openFailure('ERR_WEBSQL_INIT_FAILED', error);
+        self.openFailure('ERR_WS_CONNECT_FAILED', error);
       }
     },
 
@@ -247,7 +247,10 @@ define([
 
       self.execute(sql)
         .done(deferred.resolve, deferred)
-        .fail(deferred.reject, deferred);
+        .fail(function (error) {
+          self.trigger('error', 'ERR_WS_STORE_CREATION_FAILED', error, storeName);
+          deferred.reject();
+        });
 
       return deferred.promise();
     },
@@ -259,7 +262,11 @@ define([
 
       var sql = printf(SQL.truncateTable, storeName);
       self.execute(sql)
-        .then(deferred.resolve, deferred);
+        .done(deferred.resolve, deferred)
+        .fail(function (error) {
+          self.trigger('error', 'ERR_WS_CLEAR_FAILED', error, storeName);
+          deferred.reject();
+        });
 
       return deferred.promise();
     },
@@ -280,7 +287,7 @@ define([
       self.execute(sql)
         .done(function (result) {
           if (result.rows.length === 0) {
-            self.trigger('error', 'ERR_NOT_FOUND', null, storeName, json);
+            self.trigger('error', 'ERR_WS_OBJECT_NOT_FOUND', null, storeName, json);
             deferred.reject();
           }
           else {
@@ -289,7 +296,7 @@ define([
           }
         })
         .fail(function (error) {
-          self.trigger('error', 'ERR_READ_FAILED', error, storeName, json);
+          self.trigger('error', 'ERR_WS_READ_FAILED', error, storeName, json);
           deferred.reject();
         });
 
@@ -311,7 +318,7 @@ define([
           deferred.resolve(elements);
         })
         .fail(function (error) {
-          self.trigger('error', 'ERR_QUERY_FAILED', error, storeName);
+          self.trigger('error', 'ERR_WS_QUERY_FAILED', error, storeName);
           deferred.reject();
         });
 
@@ -343,13 +350,13 @@ define([
             deferred.resolve();
           })
           .fail(function (error) {
-            self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+            self.trigger('error', 'ERR_WS_UPDATE_FAILED',
                 error, storeName, json);
             deferred.reject();
           });
       }
       catch (error) {
-        self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+        self.trigger('error', 'ERR_WS_UPDATE_FAILED',
             error, storeName, json);
         deferred.reject();
       }
@@ -372,7 +379,7 @@ define([
           deferred.resolve();
         })
         .fail(function (error) {
-          self.trigger('error', 'ERR_STORE_DESTROY_FAILED',
+          self.trigger('error', 'ERR_WS_DESTROY_FAILED',
               error, storeName, json);
           deferred.reject();
         });
