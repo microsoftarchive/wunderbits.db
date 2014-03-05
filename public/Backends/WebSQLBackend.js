@@ -2,34 +2,389 @@ define([
 
   './AbstractBackend',
 
+  '../lib/printf',
+  '../lib/FieldTypes',
+
   'wunderbits/global',
 
-  'wunderbits/core/WBDeferred'
+  'wunderbits/helpers/SafeParse',
+
+  'wunderbits/core/WBDeferred',
+
+  'wunderbits/core/When',
+  'wunderbits/core/lib/forEach'
 
 ], function (
   AbstractBackend,
+  printf, FieldTypes,
   global,
+  SafeParse,
   WBDeferred,
+  when, forEach,
   undefined
 ) {
 
   'use strict';
 
+  var openDatabase = global.openDatabase;
+  var escape = global.escape;
+  var unescape = global.unescape;
+
+  var SQL = {
+    'createTable': 'CREATE TABLE IF NOT EXISTS ? (? TEXT PRIMARY KEY, ?)',
+    'truncateTable': 'DELETE FROM ?',
+    'dropTable': 'DROP TABLE IF EXISTS ?',
+
+    'read': 'SELECT * from ? WHERE ?=\'?\' LIMIT 1',
+    'query': 'SELECT * from ?',
+    'upsert': 'INSERT OR REPLACE INTO ? (?) VALUES (?)',
+    'destroy': 'DELETE FROM ? WHERE ?=\'?\''
+  };
+
+  // We need to map schema types to websql types
+  var TYPES = { 'default': 'TEXT' };
+  TYPES[FieldTypes.Float] = 'REAL';
+  TYPES[FieldTypes.Integer] = 'INTEGER';
+
   var WebSQLBackend = AbstractBackend.extend({
 
-    'openDB': function () {},
+    'dbSize': (5 * 1024 * 1024),
 
-    'createStore': function () {},
+    'openDB': function (name, version) {
 
-    'clearStore': function () {},
+      var self = this;
+      var readyDeferred = self.ready;
 
-    'read': function () {},
+      // in case safari is broken after an update
+      var initTimeout = setTimeout(function () {
+        self.openFailure('ERR_WEBSQL_TIMEOUT');
+      }, 2000);
 
-    'query': function () {},
+      readyDeferred.done(function () {
+        clearTimeout(initTimeout);
+      });
 
-    'update': function () {},
+      try {
+        // Safari needs the DB to initialized with **exactly** 5 mb storage
+        var db = openDatabase(name, '', name, self.dbSize);
+        self.db = db;
 
-    'destroy': function () {}
+        // WebSQL versions are strings
+        version = '' + version;
+
+        // check if we need to upgrade the schema
+        if (db.version !== version) {
+          self.onUpgradeNeeded()
+            .done(self.openSuccess, self)
+            .fail(self.openFailure, self);
+        }
+        // schema correct
+        else {
+          self.openSuccess();
+        }
+      } catch (error) {
+        self.openFailure('ERR_WEBSQL_INIT_FAILED', error);
+      }
+    },
+
+    'execute': function (sql) {
+
+      var self = this;
+
+      var deferred = new WBDeferred();
+
+      // create a transaction
+      self.db.transaction(function (transaction) {
+        // execute the sql
+        transaction.executeSql(sql, [], function (tx, result) {
+          deferred.resolve(result);
+        }, function (tx, err) {
+          deferred.reject(err);
+        });
+      });
+
+      return deferred.promise();
+    },
+
+    'parseGeneric': function (data) {
+      return SafeParse.json(unescape(data.json));
+    },
+
+    'populateGeneric': function (keys, values, json) {
+
+      keys.push('json');
+      values.push('\'' + escape(JSON.stringify(json)) + '\'');
+    },
+
+    'parseFields': function (data, fields) {
+      var obj = {
+        'id': data.id
+      };
+
+      var name, type, value, parsed;
+      for (name in fields) {
+        type = fields[name];
+        value = data[name];
+
+        if (data[name] !== undefined) {
+          if (type === FieldTypes.Integer) {
+            parsed = parseInt(value, 10);
+            if (isNaN(value)) {
+              console.warn('failed to parse %s as Integer', value);
+            }
+            value = parsed || 0;
+          }
+          else if (type === FieldTypes.Float) {
+            parsed = parseFloat(value, 10);
+            if (isNaN(value)) {
+              console.warn('failed to parse %s as Float', value);
+            }
+            value = parsed || 0;
+          }
+          else {
+
+            // don't unescape nulls & undefineds
+            value = value && unescape(value);
+
+            if (type === FieldTypes.Boolean) {
+              value = (value === 'true');
+            }
+            else if (type === FieldTypes.Array) {
+              value = SafeParse.json(value) || [];
+            }
+            else if (type === FieldTypes.Object) {
+              value = SafeParse.json(value) || {};
+            }
+            else if (value === '') {
+              value = null;
+            }
+          }
+          obj[name] = data[name];
+        }
+      }
+
+      return obj;
+    },
+
+    'populateFields': function (keys, values, json, fields, keyPath) {
+
+      var name, type, value;
+      for (name in fields) {
+
+        type = fields[name];
+        value = json[name];
+
+        if (value !== undefined && name !== keyPath) {
+
+          if (type === FieldTypes.Float || type === FieldTypes.Integer) {
+            value = (!!value && !isNaN(value)) ? value : 0;
+          }
+          else if (type === FieldTypes.Array && Array.isArray(value)) {
+            value = '\'' + escape(JSON.stringify(value)) + '\'';
+          }
+          else if (type === FieldTypes.Object) {
+            value = '\'' + escape(JSON.stringify(value)) + '\'';
+          }
+          else {
+            value = (value !== null) ? '\'' + escape(value) + '\'' : 'NULL';
+          }
+
+          keys.push('"' + name + '"');
+          values.push(value);
+        }
+      }
+    },
+
+    'toArray': function (rows, fields) {
+
+      var self = this;
+      var count = rows.length;
+      var returnRows = new Array(count);
+      var parse = self[fields ? 'parseFields' : 'parseGeneric'];
+
+      var data;
+      for (var index = 0; index < count; index++) {
+        data = rows.item(index);
+        returnRows[index] = parse.call(self, data, fields);
+      }
+
+      return returnRows;
+    },
+
+    'onUpgradeNeeded': function () {
+
+      var self = this;
+      self.trigger('upgrading');
+      var storeCreationDeferreds = self.mapStores(self.createStore);
+      return when(storeCreationDeferreds).promise();
+    },
+
+    'createStore': function (storeName, storeInfo) {
+
+      var self = this;
+
+      var deferred = new WBDeferred();
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var fields = storeInfo.fields;
+
+      var sql = SQL.createTable;
+      if (!fields) {
+        sql = printf(sql, storeName, keyPath, 'json TEXT');
+      }
+      else {
+
+        if (keyPath === 'id') {
+          delete fields.id;
+        }
+
+        // convert our Field types to WebSQL types
+        var columns = Object.keys(fields).map(function (type) {
+          return '"' + type + '" ' + (TYPES[fields[type]] || TYPES.default);
+        });
+
+        sql = printf(sql, storeName, keyPath, columns.join(', '));
+      }
+
+      self.execute(sql)
+        .done(deferred.resolve, deferred)
+        .fail(deferred.reject, deferred);
+
+      return deferred.promise();
+    },
+
+    'clearStore': function (storeName) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var sql = printf(SQL.truncateTable, storeName);
+      self.execute(sql)
+        .then(deferred.resolve, deferred);
+
+      return deferred.promise();
+    },
+
+    'read': function (storeName, json) {
+
+      var self = this;
+
+      var deferred = new WBDeferred();
+
+      var storeInfo = self.stores[storeName];
+      var fields = storeInfo.fields;
+
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var id = json[keyPath] || json.id;
+
+      var sql = printf(SQL.read, storeName, keyPath, id);
+      self.execute(sql)
+        .done(function (result) {
+          if (result.rows.length === 0) {
+            self.trigger('error', 'ERR_NOT_FOUND', null, storeName, json);
+            deferred.reject();
+          }
+          else {
+            var elements = self.toArray(result.rows, fields);
+            deferred.resolve(elements[0]);
+          }
+        })
+        .fail(function (error) {
+          self.trigger('error', 'ERR_READ_FAILED', error, storeName, json);
+          deferred.reject();
+        });
+
+      return deferred.promise();
+    },
+
+    'query': function (storeName) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var storeInfo = self.stores[storeName];
+      var fields = storeInfo && storeInfo.fields;
+
+      var sql = printf(SQL.query, storeName);
+      self.execute(sql)
+        .done(function (result) {
+          var elements = self.toArray(result.rows, fields);
+          deferred.resolve(elements);
+        })
+        .fail(function (error) {
+          self.trigger('error', 'ERR_QUERY_FAILED', error, storeName);
+          deferred.reject();
+        });
+
+      return deferred.promise();
+    },
+
+    'update': function (storeName, json) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var storeInfo = self.stores[storeName];
+      var fields = storeInfo.fields;
+
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var id = json[keyPath] || json.id;
+
+      var keys = [keyPath];
+      var values = ['\'' + id + '\''];
+
+      var populate = self[fields ? 'populateFields': 'populateGeneric'];
+      populate.call(self, keys, values, json, fields, keyPath);
+
+      var sql = printf(SQL.upsert, storeName, keys, values);
+      try {
+
+        self.execute(sql)
+          .done(function () {
+            deferred.resolve();
+          })
+          .fail(function (error) {
+            self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+                error, storeName, json);
+            deferred.reject();
+          });
+      }
+      catch (error) {
+        self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
+            error, storeName, json);
+        deferred.reject();
+      }
+
+      return deferred.promise();
+    },
+
+    'destroy': function (storeName, json) {
+
+      var self = this;
+      var deferred = new WBDeferred();
+
+      var storeInfo = self.stores[storeName];
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var id = json[keyPath] || json.id;
+
+      var sql = printf(SQL.destroy, storeName, keyPath, id);
+      self.execute(sql)
+        .done(function () {
+          deferred.resolve();
+        })
+        .fail(function (error) {
+          self.trigger('error', 'ERR_STORE_DESTROY_FAILED',
+              error, storeName, json);
+          deferred.reject();
+        });
+
+      return deferred.promise();
+    },
+
+    'nuke': function () {
+
+      console.warn('cant delete websql database');
+      return (new WBDeferred()).resolve().promise();
+    }
 
   });
 

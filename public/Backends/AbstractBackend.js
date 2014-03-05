@@ -16,9 +16,7 @@ define([
 
   var AbstractBackend = WBEventEmitter.extend({
 
-    'properties': {
-      'defaultKeyPath': 'id'
-    },
+    'defaultKeyPath': 'id',
 
     'initialize': function () {
 
