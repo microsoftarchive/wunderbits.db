@@ -236,6 +236,24 @@ define([
       };
 
       return deferred.promise();
+    'nuke': function () {
+
+      var self = this;
+      var dbName = self.db.name;
+
+      var deferred = new WBDeferred();
+
+      var request = indexedDB.deleteDatabase(dbName);
+
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
+
+      request.onerror = function () {
+        deferred.reject();
+      };
+
+      return deferred.promise();
     }
   });
 
