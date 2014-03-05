@@ -175,11 +175,6 @@ define([
     // Test for available storage-backends
     'findAvailableBackend': function (requestedBackend) {
 
-      // Force IndexedDB on packaged-app
-      if (isChromeApp) {
-        return 'indexeddb';
-      }
-
       // way to force a specific backend on init (used by tests)
       if (requestedBackend in backendTests) {
         return requestedBackend;
