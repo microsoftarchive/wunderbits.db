@@ -121,6 +121,11 @@ define([
       self.backend = backend = backends[backend];
       self.options = options;
 
+      // pipe backend errors
+      backend.on('error', function () {
+        self.trigger.apply(self, arguments);
+      });
+
       backend.connect(options)
         .done(self.initSuccess, self)
         .fail(self.initFailure, self);
