@@ -1,23 +1,19 @@
 define([
 
+  './AbstractBackend',
+
   'wunderbits/global',
 
-  'wunderbits/core/WBEventEmitter',
-  'wunderbits/core/WBDeferred',
-
-  'wunderbits/core/When',
-  'wunderbits/core/lib/toArray'
+  'wunderbits/core/WBDeferred'
 
 ], function (
+  AbstractBackend,
   global,
-  WBEventEmitter, WBDeferred,
-  when, toArray,
+  WBDeferred,
   undefined
 ) {
 
   'use strict';
-
-  var defaultKeyPath = 'id';
 
   var DOMError = global.DOMError || global.DOMException;
   var indexedDB = global.indexedDB ||
@@ -30,21 +26,7 @@ define([
     'WRITE': 'readwrite'
   };
 
-  var IndexedDBBackend = WBEventEmitter.extend({
-
-    'initialize': function () {
-
-      var self = this;
-      self.ready = new WBDeferred();
-    },
-
-    'connect': function (options) {
-
-      var self = this;
-      self.stores = options.stores;
-      self.openDB(options.name, options.version);
-      return self.ready.promise();
-    },
+  var IndexedDBBackend = AbstractBackend.extend({
 
     'openDB': function (name, version) {
 
@@ -105,39 +87,6 @@ define([
       self.mapStores(self.createStore);
     },
 
-    'openSuccess': function () {
-
-      var self = this;
-      self.trigger('connected');
-      self.ready.resolve();
-    },
-
-    'openFailure': function (code, error) {
-
-      var self = this;
-      self.trigger('error', code, error);
-      self.ready.reject();
-    },
-
-    // helper to loop through stores
-    'mapStores': function (iterator) {
-
-      var self = this;
-      var results = [];
-      var stores = self.stores;
-      var storeNames = Object.keys(stores);
-      var result, storeName, storeInfo;
-
-      while (storeNames.length) {
-        storeName = storeNames.shift();
-        storeInfo = stores[storeName];
-        result = iterator.call(self, storeName, storeInfo);
-        results.push(result);
-      }
-
-      return results;
-    },
-
     'createStore': function (storeName, storeInfo) {
 
       var self = this;
@@ -146,7 +95,7 @@ define([
       // create store, only if doesn't already exist
       if (!self.storeNames.contains(storeName)) {
         db.createObjectStore(storeName, {
-          'keyPath': storeInfo.keyPath || defaultKeyPath
+          'keyPath': storeInfo.keyPath || self.defaultKeyPath
         });
       }
     },
@@ -173,32 +122,6 @@ define([
       return deferred.promise();
     },
 
-    'truncate': function (callback) {
-
-      var self = this;
-
-      // pause all DB operations
-      var deferred = new WBDeferred();
-      self.ready = new WBDeferred();
-
-      var storeClearPromises = self.mapStores(self.clearStore);
-      when(storeClearPromises).then(function () {
-
-        // reject all DB operations
-        self.ready.reject();
-        deferred.resolve();
-
-        // LEGACY: remove this
-        if (typeof callback === 'function') {
-          callback();
-        }
-
-        self.trigger('truncated');
-      });
-
-      return deferred.promise();
-    },
-
     'read': function (storeName, json) {
 
       var self = this;
@@ -206,7 +129,7 @@ define([
 
       var transaction = self.db.transaction([storeName], Constants.READ);
       var store = transaction.objectStore(storeName);
-      var id = json[store.keyPath || defaultKeyPath] || json.id;
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
       var request = store.get(id);
 
@@ -298,7 +221,7 @@ define([
 
       var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
-      var id = json[store.keyPath || defaultKeyPath] || json.id;
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
       var request = store['delete'](id);
 
@@ -316,7 +239,6 @@ define([
     }
   });
 
-  var self = new IndexedDBBackend();
-  return self;
+  return new IndexedDBBackend();
 
 });
