@@ -184,6 +184,9 @@ define([
       if (requestedBackend in backendTests) {
         return requestedBackend;
       }
+      else if (global.chrome && global.chrome.storage) {
+        return 'indexeddb';
+      }
 
       // IF this check has been run previously, load from localStorage
       // But, don't break the app if local storage is not available
