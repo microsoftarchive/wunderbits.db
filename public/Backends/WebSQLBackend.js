@@ -159,7 +159,7 @@ define([
               value = null;
             }
           }
-          obj[name] = data[name];
+          obj[name] = value;
         }
       }
 
