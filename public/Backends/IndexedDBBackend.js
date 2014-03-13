@@ -248,7 +248,7 @@ define([
     'nuke': function () {
 
       var self = this;
-      var dbName = self.db.name;
+      var dbName = self.options.db.name;
 
       var deferred = new WBDeferred();
 

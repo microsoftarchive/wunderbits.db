@@ -31,6 +31,8 @@ define([
     'connect': function (options) {
 
       var self = this;
+      self.options = self.options || {};
+      self.options.db = options;
       self.stores = options.stores;
       self.openDB(options.name, options.version);
       return self.ready.promise();
@@ -47,7 +49,7 @@ define([
 
       var self = this;
       self.trigger('error', code, error);
-      self.ready.reject();
+      self.ready.reject(code, error);
     },
 
     // helper to loop through stores

@@ -389,8 +389,9 @@ define([
 
     'nuke': function () {
 
+      var self = this;
       console.warn('cant delete websql database');
-      return (new WBDeferred()).resolve().promise();
+      return self.truncate();
     }
 
   });
