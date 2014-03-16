@@ -1,0 +1,29 @@
+{
+  "//REFERENCE": "https://github.com/millermedeiros/esformatter/blob/master/lib/preset/default.json",
+  "root": true,
+  "preset" : "default",
+  "indent" : {
+    "value" : "  "
+  },
+  "lineBreak" : {
+    "value" : "\n",
+    "keepEmptyLines" : 1,
+    "before": {
+      "FunctionDeclaration": 1
+    },
+    "after": {
+      "FunctionExpression": 1,
+      "FunctionDeclaration": 1
+    }
+  },
+  "whiteSpace" : {
+    "before": {
+      "FunctionExpressionOpeningBrace": 1
+    },
+    "after": {
+      "FunctionReservedWord": 1,
+      "FunctionName" : 1,
+      "FunctionExpressionClosingBrace" : 1
+    }
+  }
+}
