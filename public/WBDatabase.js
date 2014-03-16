@@ -16,11 +16,11 @@ define([
   'wunderbits/core/lib/clone'
 
 ], function (
-  MemoryBackend, WebSQLBackend, IndexedDBBackend,
-  global, console,
-  WBEventEmitter, WBDeferred,
-  assert, size, extend, clone,
-  undefined
+MemoryBackend, WebSQLBackend, IndexedDBBackend,
+global, console,
+WBEventEmitter, WBDeferred,
+assert, size, extend, clone,
+undefined
 ) {
 
   'use strict';
@@ -114,7 +114,7 @@ define([
       };
     },
 
-    'initBackend': function  (backend, options) {
+    'initBackend': function (backend, options) {
 
       var self = this;
 
@@ -138,10 +138,10 @@ define([
 
       var crudOps = {
         'create': backend.update,
-        'read':   backend.read,
+        'read': backend.read,
         'update': backend.update,
         'delete': backend.destroy,
-        'query':  backend.query
+        'query': backend.query
       };
 
       // bind crud operations to the backend for context
@@ -151,11 +151,13 @@ define([
         crudOps[key] = function () {
           var args = arguments;
           var deferred = new WBDeferred();
-          backend.ready.done(function () {
+          var ready = backend.ready;
+          ready.done(function () {
             fn.apply(backend, args)
               .done(deferred.resolve, deferred)
               .fail(deferred.reject, deferred);
-          }).fail(deferred.reject, deferred);
+          });
+          ready.fail(deferred.reject, deferred);
           return deferred.promise();
         };
       });
