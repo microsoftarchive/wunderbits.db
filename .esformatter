@@ -9,11 +9,17 @@
     "value" : "\n",
     "keepEmptyLines" : 1,
     "before": {
-      "FunctionDeclaration": 1
+      "FunctionDeclaration": 1,
+      "ElseStatement": 1,
+      "ElseIfStatement": 1,
+      "VariableName": 0,
+      "VariableDeclaration": 0,
+      "VariableDeclarationWithoutInit": 0
     },
     "after": {
       "FunctionExpression": 1,
-      "FunctionDeclaration": 1
+      "FunctionDeclaration": 1,
+      "VariableDeclaration": 0
     }
   },
   "whiteSpace" : {
