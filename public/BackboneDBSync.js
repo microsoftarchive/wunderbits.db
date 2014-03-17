@@ -92,7 +92,13 @@ define([
         }
         // regular models
         else {
-          var json = typeof instance.toJSON === 'function' ? instance.toJSON() : clone(instance.attributes);
+          var json;
+          if (typeof instance.toJSON === 'function') {
+            json = instance.toJSON();
+          }
+          else {
+            json = clone(instance.attributes);
+          }
           json.id || (json.id = instance.id);
           request = crud[method](storeName, json);
         }

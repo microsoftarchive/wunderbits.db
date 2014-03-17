@@ -1,23 +1,19 @@
 define([
 
+  './AbstractBackend',
+
   'wunderbits/global',
 
-  'wunderbits/core/WBEventEmitter',
-  'wunderbits/core/WBDeferred',
-
-  'wunderbits/core/When',
-  'wunderbits/core/lib/toArray'
+  'wunderbits/core/WBDeferred'
 
 ], function (
+  AbstractBackend,
   global,
-  WBEventEmitter, WBDeferred,
-  when, toArray,
+  WBDeferred,
   undefined
 ) {
 
   'use strict';
-
-  var defaultKeyPath = 'id';
 
   var DOMError = global.DOMError || global.DOMException;
   var indexedDB = global.indexedDB ||
@@ -30,21 +26,22 @@ define([
     'WRITE': 'readwrite'
   };
 
-  var IndexedDBBackend = WBEventEmitter.extend({
+  var Errors = {
+    'privateMode': 'ERR_IDB_FIREFOX_PRIVATE_MODE',
+    'downgrade': 'ERR_IDB_CANT_DOWNGRADE_VERSION',
+    'unknown': 'ERR_IDB_UNKNOWN',
+    'upgradeBrowser': 'ERR_IDB_UPGRADE_BROWSER',
+    'storeCreationFailed': 'ERR_IDB_STORE_CREATION_FAILED',
+    'storeClearFailed': 'ERR_IDB_STORE_CLEAR_FAILED',
+    'notFound': 'ERR_IDB_OBJECT_NOT_FOUND',
+    'getFailed': 'ERR_IDB_STORE_GET_FAILED',
+    'cursorFailed': 'ERR_IDB_CANT_OPEN_CURSOR',
+    'queryFailed': 'ERR_IDB_QUERY_FAILED',
+    'updateFailed': 'ERR_IDB_STORE_UPDATE_FAILED',
+    'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
+  };
 
-    'initialize': function () {
-
-      var self = this;
-      self.ready = new WBDeferred();
-    },
-
-    'connect': function (options) {
-
-      var self = this;
-      self.stores = options.stores;
-      self.openDB(options.name, options.version);
-      return self.ready.promise();
-    },
+  var IndexedDBBackend = AbstractBackend.extend({
 
     'openDB': function (name, version) {
 
@@ -64,27 +61,28 @@ define([
       var isDOMError = (error instanceof DOMError);
 
       if (errorName === 'InvalidStateError' && isDOMError) {
-        self.openFailure('ERR_FIREFOX_PRIVATE_MODE');
+        self.openFailure(Errors.privateMode);
       }
       else if (errorName === 'VersionError' && isDOMError) {
-        self.openFailure('ERR_CANT_DOWNGRADE_VERSION');
+        self.openFailure(Errors.downgrade);
       }
       else {
-        self.openFailure('ERR_UNKNOWN', error);
+        self.openFailure(Errors.unknown, error);
       }
     },
 
     'onRequestSuccess': function (event) {
 
       var self = this;
+
       if (self.db) {
         self.openSuccess();
         return;
       }
 
       var db = event.target.result;
-      if (typeof db.version === 'string'){
-        self.openFailure('ERR_UPGRADE_BROWSER');
+      if (typeof db.version === 'string') {
+        self.openFailure(Errors.upgradeBrowser);
         return;
       }
 
@@ -105,39 +103,6 @@ define([
       self.mapStores(self.createStore);
     },
 
-    'openSuccess': function () {
-
-      var self = this;
-      self.trigger('connected');
-      self.ready.resolve();
-    },
-
-    'openFailure': function (code, error) {
-
-      var self = this;
-      self.trigger('error', code, error);
-      self.ready.reject();
-    },
-
-    // helper to loop through stores
-    'mapStores': function (iterator) {
-
-      var self = this;
-      var results = [];
-      var stores = self.stores;
-      var storeNames = Object.keys(stores);
-      var result, storeName, storeInfo;
-
-      while (storeNames.length) {
-        storeName = storeNames.shift();
-        storeInfo = stores[storeName];
-        result = iterator.call(self, storeName, storeInfo);
-        results.push(result);
-      }
-
-      return results;
-    },
-
     'createStore': function (storeName, storeInfo) {
 
       var self = this;
@@ -145,9 +110,13 @@ define([
 
       // create store, only if doesn't already exist
       if (!self.storeNames.contains(storeName)) {
-        db.createObjectStore(storeName, {
-          'keyPath': storeInfo.keyPath || defaultKeyPath
+        var request = db.createObjectStore(storeName, {
+          'keyPath': storeInfo.keyPath || self.defaultKeyPath
         });
+
+        request.onerror = function (error) {
+          self.trigger('error', Errors.storeCreationFailed, error, storeName);
+        };
       }
     },
 
@@ -166,35 +135,9 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_CLEAR_FAILED', error, storeName);
+        self.trigger('error', Errors.storeClearFailed, error, storeName);
         deferred.reject();
       };
-
-      return deferred.promise();
-    },
-
-    'truncate': function (callback) {
-
-      var self = this;
-
-      // pause all DB operations
-      var deferred = new WBDeferred();
-      self.ready = new WBDeferred();
-
-      var storeClearPromises = self.mapStores(self.clearStore);
-      when(storeClearPromises).then(function () {
-
-        // reject all DB operations
-        self.ready.reject();
-        deferred.resolve();
-
-        // LEGACY: remove this
-        if (typeof callback === 'function') {
-          callback();
-        }
-
-        self.trigger('truncated');
-      });
 
       return deferred.promise();
     },
@@ -206,7 +149,7 @@ define([
 
       var transaction = self.db.transaction([storeName], Constants.READ);
       var store = transaction.objectStore(storeName);
-      var id = json[store.keyPath || defaultKeyPath] || json.id;
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
       var request = store.get(id);
 
@@ -216,13 +159,13 @@ define([
           deferred.resolve(json);
         }
         else {
-          self.trigger('error', 'ERR_OBJECT_NOT_FOUND', null, storeName, json);
+          self.trigger('error', Errors.notFound, null, storeName, json);
           deferred.reject();
         }
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_GET_FAILED', error, storeName, json);
+        self.trigger('error', Errors.getFailed, error, storeName, json);
         deferred.reject();
       };
 
@@ -241,12 +184,12 @@ define([
       var readCursor = store.openCursor();
 
       if (!readCursor) {
-        self.trigger('error', 'ERR_CANT_OPEN_CURSOR', null, storeName);
+        self.trigger('error', Errors.cursorFailed, null, storeName);
         deferred.reject();
       }
       else {
         readCursor.onerror = function (error) {
-          self.trigger('error', 'ERR_QUERY_FAILED', error, storeName);
+          self.trigger('error', Errors.queryFailed, error, storeName);
           deferred.reject();
         };
 
@@ -283,8 +226,7 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_UPDATE_FAILED',
-            error, storeName, json);
+        self.trigger('error', Errors.updateFailed, error, storeName, json);
         deferred.reject();
       };
 
@@ -298,7 +240,7 @@ define([
 
       var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
-      var id = json[store.keyPath || defaultKeyPath] || json.id;
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
       var request = store['delete'](id);
 
@@ -307,8 +249,27 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_STORE_DESTROY_FAILED',
-            error, storeName, json);
+        self.trigger('error', Errors.destroyFailed, error, storeName, json);
+        deferred.reject();
+      };
+
+      return deferred.promise();
+    },
+
+    'nuke': function () {
+
+      var self = this;
+      var dbName = self.options.db.name;
+
+      var deferred = new WBDeferred();
+
+      var request = indexedDB.deleteDatabase(dbName);
+
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
+
+      request.onerror = function () {
         deferred.reject();
       };
 
@@ -316,7 +277,6 @@ define([
     }
   });
 
-  var self = new IndexedDBBackend();
-  return self;
+  return new IndexedDBBackend();
 
 });

@@ -4,6 +4,7 @@ module.exports = function (grunt) {
 
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-complexity');
+  grunt.loadNpmTasks('grunt-esformatter');
   grunt.loadNpmTasks('kaapi');
 
   function config (name) {
@@ -17,7 +18,16 @@ module.exports = function (grunt) {
     'complexity': config('complexity'),
 
     // specs
-    'kaapi/node': config('kaapi')
+    'kaapi/node': config('kaapi'),
+
+    'esformatter': {
+      'options': grunt.file.readJSON('.esformatter'),
+      'src': [
+        'public/**/*.js',
+        'specs/**/*.spec.js',
+        '!public/wunderbits/core/**/*.js'
+      ]
+    }
 
   });
 

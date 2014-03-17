@@ -16,11 +16,11 @@ define([
   'wunderbits/core/lib/clone'
 
 ], function (
-  MemoryBackend, WebSQLBackend, IndexedDBBackend,
-  global, console,
-  WBEventEmitter, WBDeferred,
-  assert, size, extend, clone,
-  undefined
+MemoryBackend, WebSQLBackend, IndexedDBBackend,
+global, console,
+WBEventEmitter, WBDeferred,
+assert, size, extend, clone,
+undefined
 ) {
 
   'use strict';
@@ -114,12 +114,17 @@ define([
       };
     },
 
-    'initBackend': function  (backend, options) {
+    'initBackend': function (backend, options) {
 
       var self = this;
 
       self.backend = backend = backends[backend];
       self.options = options;
+
+      // pipe backend errors
+      backend.on('error', function () {
+        self.trigger.apply(self, arguments);
+      });
 
       backend.connect(options)
         .done(self.initSuccess, self)
@@ -133,10 +138,10 @@ define([
 
       var crudOps = {
         'create': backend.update,
-        'read':   backend.read,
+        'read': backend.read,
         'update': backend.update,
         'delete': backend.destroy,
-        'query':  backend.query
+        'query': backend.query
       };
 
       // bind crud operations to the backend for context
@@ -146,11 +151,13 @@ define([
         crudOps[key] = function () {
           var args = arguments;
           var deferred = new WBDeferred();
-          backend.ready.done(function () {
+          var ready = backend.ready;
+          ready.done(function () {
             fn.apply(backend, args)
               .done(deferred.resolve, deferred)
               .fail(deferred.reject, deferred);
-          }).fail(deferred.reject, deferred);
+          });
+          ready.fail(deferred.reject, deferred);
           return deferred.promise();
         };
       });
@@ -175,14 +182,12 @@ define([
     // Test for available storage-backends
     'findAvailableBackend': function (requestedBackend) {
 
-      // Force IndexedDB on packaged-app
-      if (isChromeApp) {
-        return 'indexeddb';
-      }
-
       // way to force a specific backend on init (used by tests)
       if (requestedBackend in backendTests) {
         return requestedBackend;
+      }
+      else if (global.chrome && global.chrome.storage) {
+        return 'indexeddb';
       }
 
       // IF this check has been run previously, load from localStorage

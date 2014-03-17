@@ -4,7 +4,7 @@ install:
 lint:
 	@grunt lint
 
-specs:
+specs: lint
 	./node_modules/.bin/mocha-phantomjs -R spec http://127.0.0.1:9988/
 
 clean:

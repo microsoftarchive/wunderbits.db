@@ -20,6 +20,7 @@
     "grunt-contrib-jshint": "~0.8.0",
     "mocha-phantomjs": "~3.3.2",
     "kaapi": "~0.1.6",
-    "kaapi.coverage": "0.0.2"
+    "kaapi.coverage": "0.0.2",
+    "grunt-esformatter": "^0.2.2"
   }
 }

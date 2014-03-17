@@ -1,8 +1,8 @@
 {
   "options": {
-    "cyclomatic": 6,
-    "halstead": 20,
-    "maintainability": 100,
+    "cyclomatic": 10,
+    "halstead": 30,
+    "maintainability": 98,
     "errorsOnly": false
   },
   "public": {

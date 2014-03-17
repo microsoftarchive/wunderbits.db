@@ -9,8 +9,14 @@ define(function (undefined) {
     var args = arguments;
 
     return text.replace(/\?/g, function () {
-      var val = args[i++];
-      return (val === undefined) ? '' : val;
+      var value = args[i++];
+      if (value === undefined) {
+        return '';
+      }
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      return value;
     });
   };
 });

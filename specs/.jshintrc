@@ -1,5 +1,6 @@
 {
   "predef": [
+    "isNode",
     "requirejs",
     "describe",
     "xdescribe",
