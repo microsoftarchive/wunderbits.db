@@ -42,11 +42,12 @@ define([
       var keyPath = (storeInfo && storeInfo.keyPath) || defaultKeyPath;
       var attributes = instance.attributes;
       var hasID = (attributes.id || attributes[keyPath]);
+      var isAWrite = /(create|update)/.test(method);
 
       // for specs, we should be able to skip this magic
       if (storeName === 'none') {
 
-        if (/(create|update)/.test(method) && !hasID) {
+        if (isAWrite && !hasID) {
           instance.set(keyPath, generateId());
         }
 
@@ -57,7 +58,7 @@ define([
       if (storeName in stores) {
 
         // Assign IDs automatically if not present
-        if (/(create|update)/.test(method)) {
+        if (isAWrite) {
 
           if (!hasID) {
             var newId = generateId();
@@ -73,6 +74,10 @@ define([
 
         var _success = options.success;
         options.success = function () {
+
+          if (isAWrite && !options.fromStorage) {
+            self.trigger('write', storeName, instance.id || instance.attributes[keyPath]);
+          }
 
           (typeof _success === 'function') && _success.apply(this, arguments);
 
