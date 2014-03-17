@@ -29,6 +29,44 @@ define([
       self.database = options.database;
     },
 
+    'generateId': function (keyPath, id, instance) {
+
+      if (!id) {
+        id = generateId();
+        if (instance.collection) {
+          while (instance.collection.get(id)) {
+            id = generateId();
+          }
+        }
+        instance.set(keyPath, id);
+      }
+
+      return id;
+    },
+
+    'queryCollection': function (collection) {
+
+      var self = this;
+      var crud = self.database.crud;
+      var storeName = collection.storeName || collection.model.prototype.storeName;
+      return crud.query(storeName);
+    },
+
+    'operateOnModel': function (model, method) {
+
+      var self = this;
+      var crud = self.database.crud;
+      var json;
+      if (typeof model.toJSON === 'function') {
+        json = model.toJSON();
+      }
+      else {
+        json = clone(model.attributes);
+      }
+      json.id || (json.id = model.id);
+      return crud[method](model.storeName, json);
+    },
+
     'sync': function (method, instance, options) {
 
       var self = this;
@@ -41,45 +79,31 @@ define([
       var storeInfo = stores[storeName];
       var keyPath = (storeInfo && storeInfo.keyPath) || defaultKeyPath;
       var attributes = instance.attributes;
-      var hasID = (attributes.id || attributes[keyPath]);
+      var id = attributes.id || attributes[keyPath];
       var isAWrite = /(create|update)/.test(method);
+
+      // Assign IDs automatically if not present
+      if (isAWrite) {
+        id = self.generateId(keyPath, id, instance);
+      }
 
       // for specs, we should be able to skip this magic
       if (storeName === 'none') {
-
-        if (isAWrite && !hasID) {
-          instance.set(keyPath, generateId());
+        if (typeof options.success === 'function') {
+          options.success();
         }
-
-        return (typeof options.success === 'function') && options.success();
+        return;
       }
 
       // skip invalid crup operation or models that don't have a valid storeName
       if (storeName in stores) {
 
-        // Assign IDs automatically if not present
-        if (isAWrite) {
-
-          if (!hasID) {
-            var newId = generateId();
-            if (instance.collection) {
-              while (instance.collection.get(newId)) {
-                newId = generateId();
-              }
-            }
-
-            instance.set(keyPath, newId);
-          }
-        }
-
         var _success = options.success;
         options.success = function () {
 
-          if (isAWrite && !options.fromStorage) {
-            self.trigger('write', storeName, instance.id || instance.attributes[keyPath]);
+          if (typeof _success === 'function') {
+            _success.apply(this, arguments);
           }
-
-          (typeof _success === 'function') && _success.apply(this, arguments);
 
           // Update full-text index when needed
           if ('fullTextIndexFields' in storeInfo) {
@@ -88,24 +112,14 @@ define([
         };
 
         var request;
-        var crud = self.database.crud;
 
         // query collections
         if (method === 'read' && !instance.id && instance.model) {
-          storeName || (storeName = instance.model.prototype.storeName);
-          request = crud.query(storeName);
+          request = self.queryCollection(instance);
         }
         // regular models
         else {
-          var json;
-          if (typeof instance.toJSON === 'function') {
-            json = instance.toJSON();
-          }
-          else {
-            json = clone(instance.attributes);
-          }
-          json.id || (json.id = instance.id);
-          request = crud[method](storeName, json);
+          request = self.operateOnModel(instance, method);
         }
 
         request.done(options.success).fail(options.error);
