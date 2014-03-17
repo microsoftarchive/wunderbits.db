@@ -16,11 +16,11 @@ define([
   'wunderbits/core/lib/clone'
 
 ], function (
-MemoryBackend, WebSQLBackend, IndexedDBBackend,
-global, console,
-WBEventEmitter, WBDeferred,
-assert, size, extend, clone,
-undefined
+  MemoryBackend, WebSQLBackend, IndexedDBBackend,
+  global, console,
+  WBEventEmitter, WBDeferred,
+  assert, size, extend, clone,
+  undefined
 ) {
 
   'use strict';
@@ -114,11 +114,12 @@ undefined
       };
     },
 
-    'initBackend': function (backend, options) {
+    'initBackend': function (backendName, options) {
 
       var self = this;
+      var BackendClass = backends[backendName];
 
-      self.backend = backend = backends[backend];
+      var backend = self.backend = new BackendClass();
       self.options = options;
 
       // pipe backend errors

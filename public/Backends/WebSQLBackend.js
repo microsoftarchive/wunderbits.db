@@ -46,7 +46,7 @@ define([
   TYPES[FieldTypes.Float] = 'REAL';
   TYPES[FieldTypes.Integer] = 'INTEGER';
 
-  var WebSQLBackend = AbstractBackend.extend({
+  return AbstractBackend.extend({
 
     'dbSize': (5 * 1024 * 1024),
 
@@ -395,7 +395,4 @@ define([
     }
 
   });
-
-  return new WebSQLBackend();
-
 });

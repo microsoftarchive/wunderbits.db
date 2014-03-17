@@ -41,7 +41,7 @@ define([
     'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
   };
 
-  var IndexedDBBackend = AbstractBackend.extend({
+  return AbstractBackend.extend({
 
     'openDB': function (name, version) {
 
@@ -276,7 +276,4 @@ define([
       return deferred.promise();
     }
   });
-
-  return new IndexedDBBackend();
-
 });
