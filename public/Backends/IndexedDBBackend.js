@@ -26,6 +26,21 @@ define([
     'WRITE': 'readwrite'
   };
 
+  var Errors = {
+    'privateMode': 'ERR_IDB_FIREFOX_PRIVATE_MODE',
+    'downgrade': 'ERR_IDB_CANT_DOWNGRADE_VERSION',
+    'unknown': 'ERR_IDB_UNKNOWN',
+    'upgradeBrowser': 'ERR_IDB_UPGRADE_BROWSER',
+    'storeCreationFailed': 'ERR_IDB_STORE_CREATION_FAILED',
+    'storeClearFailed': 'ERR_IDB_STORE_CLEAR_FAILED',
+    'notFound': 'ERR_IDB_OBJECT_NOT_FOUND',
+    'getFailed': 'ERR_IDB_STORE_GET_FAILED',
+    'cursorFailed': 'ERR_IDB_CANT_OPEN_CURSOR',
+    'queryFailed': 'ERR_IDB_QUERY_FAILED',
+    'updateFailed': 'ERR_IDB_STORE_UPDATE_FAILED',
+    'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
+  };
+
   var IndexedDBBackend = AbstractBackend.extend({
 
     'openDB': function (name, version) {
@@ -46,13 +61,13 @@ define([
       var isDOMError = (error instanceof DOMError);
 
       if (errorName === 'InvalidStateError' && isDOMError) {
-        self.openFailure('ERR_IDB_FIREFOX_PRIVATE_MODE');
+        self.openFailure(Errors.privateMode);
       }
       else if (errorName === 'VersionError' && isDOMError) {
-        self.openFailure('ERR_IDB_CANT_DOWNGRADE_VERSION');
+        self.openFailure(Errors.downgrade);
       }
       else {
-        self.openFailure('ERR_IDB_UNKNOWN', error);
+        self.openFailure(Errors.unknown, error);
       }
     },
 
@@ -66,8 +81,8 @@ define([
       }
 
       var db = event.target.result;
-      if (typeof db.version === 'string'){
-        self.openFailure('ERR_IDB_UPGRADE_BROWSER');
+      if (typeof db.version === 'string') {
+        self.openFailure(Errors.upgradeBrowser);
         return;
       }
 
@@ -100,7 +115,7 @@ define([
         });
 
         request.onerror = function (error) {
-          self.trigger('error', 'ERR_IDB_STORE_CREATION_FAILED', error, storeName);
+          self.trigger('error', Errors.storeCreationFailed, error, storeName);
         };
       }
     },
@@ -120,7 +135,7 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_IDB_CLEAR_FAILED', error, storeName);
+        self.trigger('error', Errors.storeClearFailed, error, storeName);
         deferred.reject();
       };
 
@@ -144,15 +159,13 @@ define([
           deferred.resolve(json);
         }
         else {
-          self.trigger('error', 'ERR_IDB_OBJECT_NOT_FOUND',
-              null, storeName, json);
+          self.trigger('error', Errors.notFound, null, storeName, json);
           deferred.reject();
         }
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_IDB_GET_FAILED',
-            error, storeName, json);
+        self.trigger('error', Errors.getFailed, error, storeName, json);
         deferred.reject();
       };
 
@@ -171,12 +184,12 @@ define([
       var readCursor = store.openCursor();
 
       if (!readCursor) {
-        self.trigger('error', 'ERR_IDB_CANT_OPEN_CURSOR', null, storeName);
+        self.trigger('error', Errors.cursorFailed, null, storeName);
         deferred.reject();
       }
       else {
         readCursor.onerror = function (error) {
-          self.trigger('error', 'ERR_IDB_QUERY_FAILED', error, storeName);
+          self.trigger('error', Errors.queryFailed, error, storeName);
           deferred.reject();
         };
 
@@ -213,8 +226,7 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_IDB_UPDATE_FAILED',
-            error, storeName, json);
+        self.trigger('error', Errors.updateFailed, error, storeName, json);
         deferred.reject();
       };
 
@@ -237,8 +249,7 @@ define([
       };
 
       request.onerror = function (error) {
-        self.trigger('error', 'ERR_IDB_DESTROY_FAILED',
-            error, storeName, json);
+        self.trigger('error', Errors.destroyFailed, error, storeName, json);
         deferred.reject();
       };
 

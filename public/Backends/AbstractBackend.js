@@ -14,6 +14,10 @@ define([
 
   'use strict';
 
+  var Errors = {
+    'init': 'ERR_ABSTRACT_BACKEND_INITIALIZED'
+  };
+
   var AbstractBackend = WBEventEmitter.extend({
 
     'defaultKeyPath': 'id',
@@ -22,8 +26,7 @@ define([
 
       var self = this;
 
-      assert(self.constructor !== AbstractBackend,
-          'ERR_ABSTRACT_BACKEND_INITIALIZED');
+      assert(self.constructor !== AbstractBackend, Errors.init);
 
       self.ready = new WBDeferred();
     },
