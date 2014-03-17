@@ -105,6 +105,11 @@ define([
             _success.apply(this, arguments);
           }
 
+          // trigger events for syncing
+          if (/(create|update|destroy)/.test(method)) {
+            self.database.trigger(method, storeName, id);
+          }
+
           // Update full-text index when needed
           if ('fullTextIndexFields' in storeInfo) {
             self.trigger('index', method, storeName, instance);
