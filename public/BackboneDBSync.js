@@ -88,7 +88,7 @@ define([
       }
 
       // for specs, we should be able to skip this magic
-      if (storeName === 'none') {
+      if (!storeName || storeName === 'none') {
         if (typeof options.success === 'function') {
           options.success();
         }
