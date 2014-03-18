@@ -127,7 +127,8 @@ define([
           request = self.operateOnModel(instance, method);
         }
 
-        request.done(options.success).fail(options.error);
+        options.success && request.done(options.success);
+        options.error && request.fail(options.error);
       }
     }
   });
