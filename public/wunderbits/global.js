@@ -1,6 +1,3 @@
-define(function () {
+'use strict';
 
-  'use strict';
-
-  return window;
-});
+module.exports = (typeof window === 'undefined') ? global : window;

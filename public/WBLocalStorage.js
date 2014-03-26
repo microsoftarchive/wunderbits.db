@@ -1,22 +1,7 @@
-define([
-  './localStorage/WBBrowserLocalStorage',
-  './localStorage/WBChromeLocalStorage',
-  './wunderbits/global'
-], function (
-  WBBrowserLocalStorage,
-  WBChromeLocalStorage,
-  global
-) {
+'use strict';
 
-  'use strict';
+var Global = require('wunderbits/global');
+var chrome = Global.chrome;
+var localStorageClass = chrome && chrome.storage ? 'WBChrome' : 'WBBrowser';
 
-  var localStorageClass;
-  if (global.chrome && global.chrome.storage) {
-    localStorageClass = WBChromeLocalStorage;
-  }
-  else {
-    localStorageClass = WBBrowserLocalStorage;
-  }
-
-  return localStorageClass;
-});
+module.exports = require('./localStorage/' + localStorageClass + 'LocalStorage');
