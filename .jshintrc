@@ -1,10 +1,11 @@
 {
   "predef": [
+    "window"
   ],
 
   "asi": false,
   "boss": false,
-  "browser": true,
+  "browser": false,
   "camelcase": false,
   "curly": false,
   "eqeqeq": true,

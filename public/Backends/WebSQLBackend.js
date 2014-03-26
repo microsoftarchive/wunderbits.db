@@ -11,7 +11,7 @@ var FieldTypes = require('../lib/FieldTypes');
 var Global = require('wunderbits/global');
 var SafeParse = require('wunderbits/helpers/SafeParse');
 
-var openDatabase = Global.openDatabase;
+var openConnection = Global.openDatabase;
 var escape = Global.escape;
 var unescape = Global.unescape;
 
@@ -51,7 +51,7 @@ var WebSQLBackend = AbstractBackend.extend({
 
     try {
       // Safari needs the DB to initialized with **exactly** 5 mb storage
-      var db = openDatabase(name, '', name, self.dbSize);
+      var db = openConnection(name, '', name, self.dbSize);
       self.db = db;
 
       // WebSQL versions are strings
