@@ -22,6 +22,16 @@
     "mocha-phantomjs": "~3.3.2",
     "kaapi": "~0.1.6",
     "kaapi.coverage": "0.0.2",
-    "grunt-esformatter": "^0.2.2"
+    "grunt-esformatter": "^0.2.2",
+    "gulp-rename": "^1.2.0",
+    "mold-source-map": "^0.3.0",
+    "vinyl-source-stream": "^0.1.1",
+    "gulp-streamify": "0.0.4",
+    "gulp-uglify": "^0.2.1",
+    "gulp": "^3.5.6",
+    "browserify": "^3.33.0"
+  },
+  "dependencies": {
+    "wunderbits.core": "^0.1.1"
   }
 }
