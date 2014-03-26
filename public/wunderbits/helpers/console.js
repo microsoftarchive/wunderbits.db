@@ -12,11 +12,11 @@ var methods = [
   'markTimeline', 'profile', 'profileEnd', 'table', 'time', 'timeEnd',
   'timeStamp', 'trace', 'warn'
 ];
-var length = methods.length;
+var len = methods.length;
 var Console = (Global.console = Global.console || {});
 
-while (length--) {
-  method = methods[length];
+while (len--) {
+  method = methods[len];
   // Only stub undefined methods.
   if (!Console[method]) {
     Console[method] = noop;
