@@ -1,90 +1,87 @@
-define([
-  'wunderbits/core/WBClass',
-  'wunderbits/core/WBDeferred',
-  'wunderbits/global'
-], function (
-  WBClass,
-  WBDeferred,
-  global
-) {
+'use strict';
 
-  'use strict';
+var core = require('wunderbits.core');
+var WBClass = core.WBClass;
+var WBDeferred = core.WBDeferred;
 
-  var chrome = global.chrome;
-  var localStorage = chrome && chrome.storage && chrome.storage.local;
+var Global = require('wunderbits/global');
 
-  return WBClass.extend({
+var chrome = Global.chrome;
+var localStorage = chrome && chrome.storage && chrome.storage.local;
 
-    'getItem': function (key) {
+var WBChromeLocalStorage = WBClass.extend({
 
-      var deferred = new WBDeferred();
+  'getItem': function (key) {
 
-      localStorage.get(key, function (data) {
+    var deferred = new WBDeferred();
 
-        if (chrome.runtime.lastError) {
-          deferred.reject(chrome.runtime.lastError);
-        }
-        else {
-          var value = data[key];
-          deferred.resolve(value);
-        }
-      });
+    localStorage.get(key, function (data) {
 
-      return deferred.promise();
-    },
+      if (chrome.runtime.lastError) {
+        deferred.reject(chrome.runtime.lastError);
+      }
+      else {
+        var value = data[key];
+        deferred.resolve(value);
+      }
+    });
 
-    'setItem': function (key, value) {
+    return deferred.promise();
+  },
 
-      var deferred = new WBDeferred();
+  'setItem': function (key, value) {
 
-      var data = {};
-      data[key] = value;
+    var deferred = new WBDeferred();
 
-      localStorage.set(data, function () {
+    var data = {};
+    data[key] = value;
 
-        if (chrome.runtime.lastError) {
-          deferred.reject(chrome.runtime.lastError);
-        }
-        else {
-          deferred.resolve();
-        }
-      });
+    localStorage.set(data, function () {
 
-      return deferred.promise();
-    },
+      if (chrome.runtime.lastError) {
+        deferred.reject(chrome.runtime.lastError);
+      }
+      else {
+        deferred.resolve();
+      }
+    });
 
-    'removeItem': function (key) {
+    return deferred.promise();
+  },
 
-      var deferred = new WBDeferred();
+  'removeItem': function (key) {
 
-      localStorage.remove(key, function () {
+    var deferred = new WBDeferred();
 
-        if (chrome.runtime.lastError) {
-          deferred.reject(chrome.runtime.lastError);
-        }
-        else {
-          deferred.resolve();
-        }
-      });
+    localStorage.remove(key, function () {
 
-      return deferred.promis();
-    },
+      if (chrome.runtime.lastError) {
+        deferred.reject(chrome.runtime.lastError);
+      }
+      else {
+        deferred.resolve();
+      }
+    });
 
-    'clear': function () {
+    return deferred.promis();
+  },
 
-      var deferred = new WBDeferred();
+  'clear': function () {
 
-      localStorage.clear(function () {
+    var deferred = new WBDeferred();
 
-        if (chrome.runtime.lastError) {
-          deferred.reject(chrome.runtime.lastError);
-        }
-        else {
-          deferred.resolve();
-        }
-      });
+    localStorage.clear(function () {
 
-      return deferred.promise();
-    }
-  });
+      if (chrome.runtime.lastError) {
+        deferred.reject(chrome.runtime.lastError);
+      }
+      else {
+        deferred.resolve();
+      }
+    });
+
+    return deferred.promise();
+  }
 });
+
+module.exports = WBChromeLocalStorage;

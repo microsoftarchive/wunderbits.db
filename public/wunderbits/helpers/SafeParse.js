@@ -1,26 +1,21 @@
-define([
+'use strict';
 
-  './console',
+var core = require('wunderbits.core');
+var WBSingleton = core.WBSingleton;
 
-  'wunderbits/core/WBSingleton'
+var Console = require('./console');
 
-], function (console, WBSingleton, undefined) {
+var SafeParse = WBSingleton.extend({
+  'json': function (jsonString) {
 
-  'use strict';
-
-  return WBSingleton.extend({
-
-    'json': function (jsonString) {
-
-      var data;
-      try {
-        data = JSON.parse(jsonString);
-      }
-      catch (e) {
-        console.warn('Unable to parse "' + jsonString + '"');
-      }
-
-      return data;
+    var data;
+    try {
+      data = JSON.parse(jsonString);
+    } catch (e) {
+      Console.warn('Unable to parse "' + jsonString + '"');
     }
-  });
+    return data;
+  }
 });
+
+module.exports = SafeParse;

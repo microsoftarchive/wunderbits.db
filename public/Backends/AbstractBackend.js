@@ -1,107 +1,97 @@
-define([
+'use strict';
 
-  'wunderbits/core/WBEventEmitter',
-  'wunderbits/core/WBDeferred',
+var core = require('wunderbits.core');
+var WBEventEmitter = core.WBEventEmitter;
+var WBDeferred = core.WBDeferred;
+var when = core.lib.when;
+var assert = core.lib.assert;
 
-  'wunderbits/core/When',
-  'wunderbits/core/lib/assert'
+var Errors = {
+  'init': 'ERR_ABSTRACT_BACKEND_INITIALIZED'
+};
 
-], function (
-  WBEventEmitter, WBDeferred,
-  when, assert,
-  undefined
-) {
+var AbstractBackend = WBEventEmitter.extend({
 
-  'use strict';
+  'defaultKeyPath': 'id',
 
-  var Errors = {
-    'init': 'ERR_ABSTRACT_BACKEND_INITIALIZED'
-  };
+  'initialize': function () {
 
-  var AbstractBackend = WBEventEmitter.extend({
+    var self = this;
 
-    'defaultKeyPath': 'id',
+    assert(self.constructor !== AbstractBackend, Errors.init);
 
-    'initialize': function () {
+    self.ready = new WBDeferred();
+  },
 
-      var self = this;
+  'connect': function (options) {
 
-      assert(self.constructor !== AbstractBackend, Errors.init);
+    var self = this;
+    self.options = self.options || {};
+    self.options.db = options;
+    self.stores = options.stores;
+    self.openDB(options.name, options.version);
+    return self.ready.promise();
+  },
 
-      self.ready = new WBDeferred();
-    },
+  'openSuccess': function () {
 
-    'connect': function (options) {
+    var self = this;
+    self.trigger('connected');
+    self.ready.resolve();
+  },
 
-      var self = this;
-      self.options = self.options || {};
-      self.options.db = options;
-      self.stores = options.stores;
-      self.openDB(options.name, options.version);
-      return self.ready.promise();
-    },
+  'openFailure': function (code, error) {
 
-    'openSuccess': function () {
+    var self = this;
+    self.trigger('error', code, error);
+    self.ready.reject(code, error);
+  },
 
-      var self = this;
-      self.trigger('connected');
-      self.ready.resolve();
-    },
+  // helper to loop through stores
+  'mapStores': function (iterator) {
 
-    'openFailure': function (code, error) {
+    var self = this;
+    var results = [];
+    var stores = self.stores;
+    var storeNames = Object.keys(stores);
+    var result, storeName, storeInfo;
 
-      var self = this;
-      self.trigger('error', code, error);
-      self.ready.reject(code, error);
-    },
+    while (storeNames.length) {
+      storeName = storeNames.shift();
+      storeInfo = stores[storeName];
+      result = iterator.call(self, storeName, storeInfo);
+      results.push(result);
+    }
 
-    // helper to loop through stores
-    'mapStores': function (iterator) {
+    return results;
+  },
 
-      var self = this;
-      var results = [];
-      var stores = self.stores;
-      var storeNames = Object.keys(stores);
-      var result, storeName, storeInfo;
+  'truncate': function (callback) {
 
-      while (storeNames.length) {
-        storeName = storeNames.shift();
-        storeInfo = stores[storeName];
-        result = iterator.call(self, storeName, storeInfo);
-        results.push(result);
+    var self = this;
+
+    // pause all DB operations
+    var deferred = new WBDeferred();
+    self.ready = new WBDeferred();
+
+    var storeClearPromises = self.mapStores(self.clearStore);
+    when(storeClearPromises).then(function () {
+
+      // reject all DB operations
+      self.ready.reject();
+      deferred.resolve();
+
+      // LEGACY: remove this
+      if (typeof callback === 'function') {
+        callback();
       }
 
-      return results;
-    },
+      self.trigger('truncated');
+    });
 
-    'truncate': function (callback) {
-
-      var self = this;
-
-      // pause all DB operations
-      var deferred = new WBDeferred();
-      self.ready = new WBDeferred();
-
-      var storeClearPromises = self.mapStores(self.clearStore);
-      when(storeClearPromises).then(function () {
-
-        // reject all DB operations
-        self.ready.reject();
-        deferred.resolve();
-
-        // LEGACY: remove this
-        if (typeof callback === 'function') {
-          callback();
-        }
-
-        self.trigger('truncated');
-      });
-
-      return deferred.promise();
-    },
-
-  });
-
-  return AbstractBackend;
+    return deferred.promise();
+  },
 
 });
+
+module.exports = AbstractBackend;
