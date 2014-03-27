@@ -11,8 +11,7 @@ var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
 var IndexedDBBackend = require('./Backends/IndexedDBBackend');
 
-var Global = require('wunderbits/global');
-var Console = require('wunderbits/helpers/console');
+var Global = require('./lib/global');
 
 var chrome = Global.chrome;
 var isChromeApp = !!(chrome && chrome.app && chrome.app.runtime);
@@ -98,8 +97,8 @@ var WBDatabase = WBEventEmitter.extend({
   // Define the loggers
   'initLogger': function (label) {
     return {
-      'info': Console.info.bind(Console, '[' + label + ']'),
-      'error': Console.error.bind(Console, '[' + label + ']')
+      'info': console.info.bind(console, '[' + label + ']'),
+      'error': console.error.bind(console, '[' + label + ']')
     };
   },
 

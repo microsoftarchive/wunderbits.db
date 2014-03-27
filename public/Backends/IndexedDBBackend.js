@@ -4,7 +4,7 @@ var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
 
 var AbstractBackend = require('./AbstractBackend');
-var Global = require('wunderbits/global');
+var Global = require('../lib/global');
 
 var DOMError = Global.DOMError || Global.DOMException;
 var indexedDB = Global.indexedDB ||

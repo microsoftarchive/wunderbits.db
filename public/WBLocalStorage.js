@@ -1,7 +1,14 @@
 'use strict';
 
-var Global = require('wunderbits/global');
+var Global = require('./lib/global');
 var chrome = Global.chrome;
-var localStorageClass = chrome && chrome.storage ? 'WBChrome' : 'WBBrowser';
+var isChromeApp = chrome && chrome.storage;
 
-module.exports = require('./localStorage/' + localStorageClass + 'LocalStorage');
+var localStorageClass;
+if (isChromeApp) {
+  localStorageClass = require('./localStorage/WBChromeLocalStorage');
+} else {
+  localStorageClass = require('./localStorage/WBBrowserLocalStorage');
+}
+
+module.exports = localStorageClass;

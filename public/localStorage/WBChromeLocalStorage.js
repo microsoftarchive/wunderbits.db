@@ -4,7 +4,7 @@ var core = require('wunderbits.core');
 var WBClass = core.WBClass;
 var WBDeferred = core.WBDeferred;
 
-var Global = require('wunderbits/global');
+var Global = require('../lib/global');
 
 var chrome = Global.chrome;
 var localStorage = chrome && chrome.storage && chrome.storage.local;

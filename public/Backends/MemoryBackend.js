@@ -6,8 +6,8 @@ var forEach = core.lib.forEach;
 var toArray = core.lib.toArray;
 
 var AbstractBackend = require('./AbstractBackend');
-var Global = require('wunderbits/global');
-var SafeParse = require('wunderbits/helpers/SafeParse');
+var Global = require('../lib/global');
+var SafeParse = require('../lib/SafeParse');
 
 var indexedDB = Global.indexedDB ||
                 Global.webkitIndexedDB ||
