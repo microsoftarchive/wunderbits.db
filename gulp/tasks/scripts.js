@@ -26,10 +26,7 @@ module.exports = function scripts (gulp) {
     browserify({ 'basedir': publicDir })
       .require(require.resolve(publicDir), { 'entry': true })
       // dev version with sourcemaps
-      .exclude('wunderbits.core')
-      .exclude('wunderbits/global')
-      .exclude('wunderbits/helpers/console')
-      .exclude('wunderbits/helpers/SafeParse')
+      // .exclude('wunderbits.core')
       .bundle({
         'standalone': 'wunderbits.db',
         'debug': true
