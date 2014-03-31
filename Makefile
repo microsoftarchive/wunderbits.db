@@ -1,6 +1,9 @@
 install:
 	@npm install --development
 
+build:
+	@gulp scripts
+
 lint:
 	@grunt lint
 
