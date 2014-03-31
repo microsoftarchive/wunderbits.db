@@ -11,8 +11,8 @@ var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
 var IndexedDBBackend = require('./Backends/IndexedDBBackend');
 
-var Global = require('wunderbits/global');
-var Console = require('wunderbits/helpers/console');
+var Global = require('./wunderbits/global');
+var Console = require('./wunderbits/helpers/console');
 
 var chrome = Global.chrome;
 var isChromeApp = !!(chrome && chrome.app && chrome.app.runtime);

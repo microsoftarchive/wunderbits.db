@@ -32,6 +32,6 @@
     "browserify": "^3.33.0"
   },
   "dependencies": {
-    "wunderbits.core": "^0.1.1"
+    "wunderbits.core": "^0.1.3"
   }
 }

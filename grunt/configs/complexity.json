@@ -8,8 +8,7 @@
   "public": {
     "src": [
       "Gruntfile.js",
-      "public/**/*.js",
-      "!public/wunderbits/core/**/*.js"
+      "public/**/*.js"
     ]
   }
 }

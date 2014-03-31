@@ -24,8 +24,7 @@ module.exports = function (grunt) {
       'options': grunt.file.readJSON('.esformatter'),
       'src': [
         'public/**/*.js',
-        'specs/**/*.spec.js',
-        '!public/wunderbits/core/**/*.js'
+        'specs/**/*.spec.js'
       ]
     }
 

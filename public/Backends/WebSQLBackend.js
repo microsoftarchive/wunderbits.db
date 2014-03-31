@@ -8,8 +8,8 @@ var AbstractBackend = require('./AbstractBackend');
 var printf = require('../lib/printf');
 var FieldTypes = require('../lib/FieldTypes');
 
-var Global = require('wunderbits/global');
-var SafeParse = require('wunderbits/helpers/SafeParse');
+var Global = require('../wunderbits/global');
+var SafeParse = require('../wunderbits/helpers/SafeParse');
 
 var openConnection = Global.openDatabase;
 var escape = Global.escape;

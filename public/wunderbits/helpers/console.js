@@ -1,6 +1,6 @@
 'use strict';
 
-var Global = require('wunderbits/global');
+var Global = require('../global');
 
 // HTML5 boilerplate - MIT
 // Avoid `console` errors in browsers that lack a console - e.g. < IE 10
