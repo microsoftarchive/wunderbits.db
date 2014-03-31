@@ -13,7 +13,7 @@ var methods = [
   'timeStamp', 'trace', 'warn'
 ];
 var len = methods.length;
-var Console = (Global.console = Global.console || {});
+var Console = Global.console || {};
 
 while (len--) {
   method = methods[len];
