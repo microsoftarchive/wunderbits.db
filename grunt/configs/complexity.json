@@ -1,15 +1,14 @@
 {
   "options": {
     "cyclomatic": 10,
-    "halstead": 30,
-    "maintainability": 98,
-    "errorsOnly": false
+    "halstead": 23,
+    "maintainability": 100,
+    "errorsOnly": true
   },
   "public": {
     "src": [
       "Gruntfile.js",
-      "public/**/*.js",
-      "!public/wunderbits/core/**/*.js"
+      "public/**/*.js"
     ]
   }
 }

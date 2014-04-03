@@ -1,4 +1,4 @@
-define({
+module.exports = {
   'Array': 'ARRAY',
   'Boolean': 'BOOLEAN',
   'DateTime': 'DATETIME',
@@ -6,4 +6,4 @@ define({
   'Integer': 'INTEGER',
   'Object': 'OBJECT',
   'Text': 'TEXT'
-});
+};

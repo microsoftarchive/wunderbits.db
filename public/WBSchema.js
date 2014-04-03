@@ -1,58 +1,49 @@
-define([
+'use strict';
 
-  './lib/FieldTypes',
+var core = require('wunderbits.core');
+var WBSingleton = core.WBSingleton;
+var extend = core.lib.extend;
 
-  'wunderbits/core/WBSingleton',
-  'wunderbits/core/lib/extend',
+var FieldTypes = require('./lib/FieldTypes');
 
-], function (
-  FieldTypes,
-  WBSingleton,
-  extend
-) {
+var BaseSchema = WBSingleton.extend({
+  'FieldTypes': FieldTypes,
+  'fields': {}
+});
 
-  'use strict';
+var SpecialFieldTypes = {};
+Object.keys(FieldTypes).forEach(function (type) {
+  SpecialFieldTypes[type.toLowerCase() + 's'] = FieldTypes[type];
+});
 
-  var BaseSchema = WBSingleton.extend({
-    'FieldTypes': FieldTypes,
-    'fields': {}
-  });
+function CustomExtend (properties) {
 
-  var SpecialFieldTypes = {};
-  Object.keys(FieldTypes).forEach(function (type) {
-    SpecialFieldTypes[type.toLowerCase() + 's'] = FieldTypes[type];
-  });
+  // extract fields, to be merged later
+  var fields = properties.fields;
+  delete properties.fields;
 
-  function CustomExtend (properties) {
+  // extend the schema
+  var schema = WBSingleton.extend.call(this, properties);
+  schema.extend = CustomExtend;
 
-    // extract fields, to be merged later
-    var fields = properties.fields;
-    delete properties.fields;
-
-    // extend the schema
-    var schema = WBSingleton.extend.call(this, properties);
-    schema.extend = CustomExtend;
-
-    // translate the alternative format schema
-    var key, val, type;
-    for (key in fields) {
-      val = fields[key];
-      type = SpecialFieldTypes[key];
-      if (type && Array.isArray(val)) {
-        while(val.length) {
-          fields[val.shift()] = type;
-        }
-        delete fields[key];
+  // translate the alternative format schema
+  var key, val, type;
+  for (key in fields) {
+    val = fields[key];
+    type = SpecialFieldTypes[key];
+    if (type && Array.isArray(val)) {
+      while(val.length) {
+        fields[val.shift()] = type;
       }
+      delete fields[key];
     }
-
-    // merge fields with the parent
-    schema.fields = extend({}, schema.fields, fields);
-    return schema;
   }
 
-  BaseSchema.extend = CustomExtend;
+  // merge fields with the parent
+  schema.fields = extend({}, schema.fields, fields);
+  return schema;
+}
 
-  return BaseSchema;
+BaseSchema.extend = CustomExtend;
 
-});
+module.exports = BaseSchema;

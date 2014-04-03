@@ -1,20 +1,20 @@
 {
   "public": {
     "src": [
+      "Gulpfile.js",
       "Gruntfile.js",
-      "public/**/*.js",
-      "!public/wunderbits/core/**/*.js"
+      "public/**/*.js"
     ],
     "options": {
-      "jshintrc": "public/.jshintrc"
+      "jshintrc": ".jshintrc"
     }
   },
-  "specs": {
+  "tests": {
     "src": [
-      "specs/**/*.js"
+      "tests/**/*.js"
     ],
     "options": {
-      "jshintrc": "specs/.jshintrc"
+      "jshintrc": "tests/.jshintrc"
     }
   }
 }
