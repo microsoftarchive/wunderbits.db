@@ -9,12 +9,12 @@
       "jshintrc": ".jshintrc"
     }
   },
-  "specs": {
+  "tests": {
     "src": [
-      "specs/**/*.js"
+      "tests/**/*.js"
     ],
     "options": {
-      "jshintrc": "specs/.jshintrc"
+      "jshintrc": "tests/.jshintrc"
     }
   }
 }

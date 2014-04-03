@@ -4,7 +4,7 @@
   "description": "Data storage for the browser",
   "main": "public/index.js",
   "scripts": {
-    "test": "make specs"
+    "test": "make lint test"
   },
   "repository": {
     "type": "git",

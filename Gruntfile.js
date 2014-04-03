@@ -24,7 +24,7 @@ module.exports = function (grunt) {
       'options': grunt.file.readJSON('.esformatter'),
       'src': [
         'public/**/*.js',
-        'specs/**/*.spec.js'
+        'tests/**/*.spec.js'
       ]
     }
 
@@ -32,7 +32,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('lint', ['jshint', 'complexity']);
 
-  grunt.registerTask('specs', ['kaapi/node']);
+  grunt.registerTask('tests', ['kaapi/node']);
 
   grunt.registerTask('default', ['lint']);
 };
