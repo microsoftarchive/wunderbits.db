@@ -4,11 +4,9 @@ var core = require('wunderbits.core');
 var WBClass = core.WBClass;
 var WBDeferred = core.WBDeferred;
 
-var Global = require('../lib/global');
-
 var localStorage;
 try {
-  localStorage = Global.localStorage;
+  localStorage = global.localStorage;
 }
 catch (e) {
   console.warn(e);

@@ -1,7 +1,6 @@
 'use strict';
 
-var Global = require('./lib/global');
-var chrome = Global.chrome;
+var chrome = global.chrome;
 var isChromeApp = chrome && chrome.storage;
 
 var localStorageClass;
