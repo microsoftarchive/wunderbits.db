@@ -17,6 +17,7 @@
   "homepage": "http://wunderlist.github.io/wunderbits.db",
   "devDependencies": {
     "grunt": "~0.4.2",
+    "grunt-cli": "~0.1.13",
     "grunt-complexity": "~0.1.4",
     "grunt-contrib-jshint": "~0.8.0",
 
