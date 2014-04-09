@@ -10,6 +10,7 @@ var clone = core.lib.clone;
 var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
 var IndexedDBBackend = require('./Backends/IndexedDBBackend');
+var LevelDBBackend = require('./Backends/LevelDBBackend');
 
 var chrome = global.chrome;
 var isChromeApp = !!(chrome && chrome.app && chrome.app.runtime);
@@ -29,6 +30,7 @@ var backendTests = {
 };
 
 var backends = {
+  'leveldb': LevelDBBackend,
   'memory': MemoryBackend,
   'websql': WebSQLBackend,
   'indexeddb': IndexedDBBackend
@@ -68,7 +70,7 @@ var WBDatabase = WBEventEmitter.extend({
       return ready.promise();
     }
 
-    backendName = self.findAvailableBackend(backendName);
+    // backendName = self.findAvailableBackend(backendName);
     self.backendName = backendName;
 
     var loggers = self.initLogger(backendName.toUpperCase());

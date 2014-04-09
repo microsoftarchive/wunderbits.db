@@ -10,6 +10,10 @@ var Errors = {
   'init': 'ERR_ABSTRACT_BACKEND_INITIALIZED'
 };
 
+function mustImplement () {
+  throw new Error('unimplimented');
+}
+
 var AbstractBackend = WBEventEmitter.extend({
 
   'defaultKeyPath': 'id',
@@ -78,7 +82,7 @@ var AbstractBackend = WBEventEmitter.extend({
     when(storeClearPromises).then(function () {
 
       // reject all DB operations
-      self.ready.reject();
+      self.ready.resolve();
       deferred.resolve();
 
       // LEGACY: remove this
@@ -92,6 +96,11 @@ var AbstractBackend = WBEventEmitter.extend({
     return deferred.promise();
   },
 
+  'clearStore': mustImplement,
+  'read': mustImplement,
+  'query': mustImplement,
+  'update': mustImplement,
+  'destroy': mustImplement
 });
 
 module.exports = AbstractBackend;

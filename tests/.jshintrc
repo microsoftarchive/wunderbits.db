@@ -1,8 +1,8 @@
 {
   "predef": [
-    "load",
     "describe",
     "xdescribe",
+    "before",
     "beforeEach",
     "afterEach",
     "it",
