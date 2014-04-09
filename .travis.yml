@@ -6,16 +6,8 @@ env:
   matrix:
   - TRAVIS=true
   global:
-  - secure: JoYCcwaMcEfJmjgh40njEsKPd/vPFnvMx20hakikMdNAXCav8o0bq+k8GSX8TteaYeBpM8udSWk25VJ5SE/Jh2XaP61NY0PAfHU7MK9+c+NDfSteQs6MF7l4aZT++lMo+SanO17b500tm2cHhB+XjRNshz+UrtNPRrGd7Q+4eVA=
-  - secure: NYXJWRqwbQRXnAnNR2rWum9lTHfZcfK0tz5uc+c7OWfpR8g5Cx/wBNTryX9coccEKQH2dtFAsszydKAXKzd6LgV12De8DlUCU4drWAyZvhbSL01Qlb8wPSXOQAjVoRGQDMW3Pag6iblPczDxDIHUT4MpDKf4pE4xrTTZ5m81m4A=
-
-notifications:
-  hipchat:
-    rooms:
-      secure: FLIsh91rd5To6Ss7zq5iid8UmW3sxwotHiqp2SUrdCPnOYgiC9aRSSRhO2/Q56s4FiwlrG0UWfpVDgcIDt23k+zMg9VRxY30/HA7hYJ3afwycvJz+fatvwhDKcTsL9+SsglxxcxcCgpU9GE1ucOJwZhO8+x70jaC8tcklNuinO0=
-    template:
-      - '%{message}: %{repository}#(%{branch}) ( <a href="%{build_url}">Details</a> / <a href="%{compare_url}">Diff</a>) '
-    format: html
+  - secure: Vc11WwykJr058A8b71Kfaule1rfWIB4KcTfgx+Xze96AgAgJw3+LzuHfTv7gnJDakT+iapIx/H5kbMo9hghEgwEVS2aWZ/2QFeh5UBv/OFA3p5kJlDDgiNQ/q3TQY4V9lkWui2Y9a/tGJvnVmG4zh/QE/Ot9SLg9g8JvrdlxCQc=
+  - secure: yJgaiEKz0QSxLvdAvyoOwBHruPW5FKfKlgwuNmdp95hzX5eNG7RK1qbq88Pf9kuUKHT4gUHjbA8wKFAgsSRs+OuxAux5gpMOI9GBEQwe3dhWet5sR/lJCqqWnzYNfB7/7xO5jMZB+jkNusCI2ebzQXNV56Amf0dFjDnqrXwdqaU=
 
 git:
   depth: 1
