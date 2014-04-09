@@ -1,6 +1,12 @@
 'use strict';
 
-var levelup = require('levelup');
+var levelup;
+try {
+  levelup = require('levelup');
+} catch (e) {
+  return console.warn('leveldb unavailable');
+}
+
 var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
 

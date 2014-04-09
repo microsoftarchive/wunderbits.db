@@ -3,7 +3,7 @@ describe('Backends/LevelDB', function () {
   'use strict';
 
   // don't run in tke browser
-  if (require.isBrowser) {
+  if ('localStorage' in global) {
     return;
   }
 
