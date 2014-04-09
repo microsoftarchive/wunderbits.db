@@ -28,4 +28,4 @@ install:
 - npm install --loglevel error --development
 
 script:
-- make lint test karma
+- make lint karma
