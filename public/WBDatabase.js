@@ -11,9 +11,7 @@ var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
 var IndexedDBBackend = require('./Backends/IndexedDBBackend');
 
-var Global = require('./lib/global');
-
-var chrome = Global.chrome;
+var chrome = global.chrome;
 var isChromeApp = !!(chrome && chrome.app && chrome.app.runtime);
 var localStorageAvailable = true;
 
@@ -184,7 +182,7 @@ var WBDatabase = WBEventEmitter.extend({
     // (disabled by the user)!
     try {
       // throws exception in chrome when cookies are disabled
-      var availableBackend = Global.localStorage.getItem('availableBackend');
+      var availableBackend = global.localStorage.getItem('availableBackend');
       if (availableBackend in backendTests) {
         return availableBackend;
       }
@@ -204,7 +202,7 @@ var WBDatabase = WBEventEmitter.extend({
     for (var name in backendTests) {
       var tests = clone(backendTests[name]);
       while (tests.length && !available) {
-        if (!!Global[tests.shift()]) {
+        if (!!global[tests.shift()]) {
           available = name;
           break;
         }
@@ -234,7 +232,7 @@ var WBDatabase = WBEventEmitter.extend({
 
       // clear out localstorage as well (in case anything ever was left there)
       if (self.backendName !== 'memory' && !isChromeApp) {
-        localStorageAvailable && Global.localStorage.clear();
+        localStorageAvailable && global.localStorage.clear();
       }
 
       self.backend.truncate().then(callback);

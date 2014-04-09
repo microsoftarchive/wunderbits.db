@@ -7,13 +7,11 @@ var when = core.lib.when;
 var AbstractBackend = require('./AbstractBackend');
 var printf = require('../lib/printf');
 var FieldTypes = require('../lib/FieldTypes');
-
-var Global = require('../lib/global');
 var SafeParse = require('../lib/SafeParse');
 
-var openConnection = Global.openDatabase;
-var escape = Global.escape;
-var unescape = Global.unescape;
+var openConnection = global.openDatabase;
+var escape = global.escape;
+var unescape = global.unescape;
 
 var SQL = {
   'createTable': 'CREATE TABLE IF NOT EXISTS ? (? TEXT PRIMARY KEY, ?)',

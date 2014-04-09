@@ -1,13 +1,28 @@
 language: node_js
 node_js:
-  - "0.10"
+- 0.10
+
+env:
+  matrix:
+  - TRAVIS=true
+  global:
+  - secure: Vc11WwykJr058A8b71Kfaule1rfWIB4KcTfgx+Xze96AgAgJw3+LzuHfTv7gnJDakT+iapIx/H5kbMo9hghEgwEVS2aWZ/2QFeh5UBv/OFA3p5kJlDDgiNQ/q3TQY4V9lkWui2Y9a/tGJvnVmG4zh/QE/Ot9SLg9g8JvrdlxCQc=
+  - secure: yJgaiEKz0QSxLvdAvyoOwBHruPW5FKfKlgwuNmdp95hzX5eNG7RK1qbq88Pf9kuUKHT4gUHjbA8wKFAgsSRs+OuxAux5gpMOI9GBEQwe3dhWet5sR/lJCqqWnzYNfB7/7xO5jMZB+jkNusCI2ebzQXNV56Amf0dFjDnqrXwdqaU=
+
+notifications:
+  slack:
+    rooms:
+      secure: JB0d7kti8ev/sSh8sFy8RiwDDaxzz7Fy1ZhrLoPIB2Sa4mCDr9Uf5qhEIYOpB41DCxBAb7+050rQ8WwPZfsoM8ehkRX38Yj+ve0qcbBXbsxsVoj9zO79j96Pe51llJZtbHjg2tFx463bnW8cotPkNIbFkR7QgE172Fn38UDvics=
 
 git:
   depth: 1
+  submodules: false
 
 before_install:
-  - npm install -g --quiet --production grunt-cli
+- npm install -g --quiet --production grunt-cli
 
-before_script:
-  # - grunt kaapi/node &
-  # - sleep 3
+install:
+- npm install --loglevel error --development
+
+script:
+- make lint karma

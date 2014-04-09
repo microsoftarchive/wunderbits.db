@@ -4,13 +4,12 @@ var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
 
 var AbstractBackend = require('./AbstractBackend');
-var Global = require('../lib/global');
 
-var DOMError = Global.DOMError || Global.DOMException;
-var indexedDB = Global.indexedDB ||
-                Global.webkitIndexedDB ||
-                Global.mozIndexedDB ||
-                Global.msIndexedDB;
+var DOMError = global.DOMError || global.DOMException;
+var indexedDB = global.indexedDB ||
+                global.webkitIndexedDB ||
+                global.mozIndexedDB ||
+                global.msIndexedDB;
 
 var Constants = {
   'READ': 'readonly',
