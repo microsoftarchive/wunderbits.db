@@ -4,7 +4,7 @@ var levelup;
 try {
   levelup = require('levelup');
 } catch (e) {
-  return console.warn('leveldb unavailable');
+  console.warn('leveldb unavailable');
 }
 
 var core = require('wunderbits.core');
@@ -15,6 +15,11 @@ var AbstractBackend = require('./AbstractBackend');
 var LevelDBBackend = AbstractBackend.extend({
 
   'openDB': function (name) {
+
+    if (!levelup) {
+      self.openFailure('ERR_LDB_UNAVAILABLE');
+      return;
+    }
 
     var self = this;
     levelup('/tmp/db/' + name, function (err, database) {
