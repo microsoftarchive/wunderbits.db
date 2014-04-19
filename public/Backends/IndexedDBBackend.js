@@ -37,7 +37,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
   'isFlushingTransactionQueue': {},
 
-  'flushNextTransaction': function (storeName) {
+  'flushNextTransaction': function (storeName, transaction) {
 
     var self = this;
     var queue = self.transactionQueue[storeName];
@@ -46,10 +46,10 @@ var IndexedDBBackend = AbstractBackend.extend({
     if (queue.length) {
       self.isFlushingTransactionQueue[storeName] = true;
       next = queue.shift();
-      next().always(function nextDone () {
+      next(transaction).always(function nextDone (resp, transaction) {
         // do not cach length !
         if (queue.length) {
-          self.flushNextTransaction(storeName);
+          self.flushNextTransaction(storeName, transaction);
         }
         else {
           self.isFlushingTransactionQueue[storeName] = false;
@@ -255,21 +255,28 @@ var IndexedDBBackend = AbstractBackend.extend({
     return deferred.promise();
   },
 
+  'getWriteTransaction': function (storeName) {
+
+    var self = this;
+    return self.db.transaction([storeName], Constants.WRITE);
+  },
+
   'update': function (storeName, json) {
 
     var self = this;
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(storeName, function updateTransaction () {
+    self.queueTransactionOperation(storeName, function updateTransaction (storeTransaction) {
 
-      var transaction = self.db.transaction([storeName], Constants.WRITE);
+      var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
       var store = transaction.objectStore(storeName);
 
       var request = store.put(json);
 
       request.onsuccess = function () {
-        deferred.resolve();
+        // pass transaction as second argument as to not resolve db request with wrong data
+        deferred.resolve(undefined, transaction);
       };
 
       request.onerror = function (error) {
@@ -289,16 +296,16 @@ var IndexedDBBackend = AbstractBackend.extend({
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(storeName, function destroyTransaction () {
+    self.queueTransactionOperation(storeName, function destroyTransaction (storeTransaction) {
 
-      var transaction = self.db.transaction([storeName], Constants.WRITE);
+      var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
       var store = transaction.objectStore(storeName);
       var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
       var request = store['delete'](id);
 
       request.onsuccess = function () {
-        deferred.resolve();
+        deferred.resolve(undefined, transaction);
       };
 
       request.onerror = function (error) {
