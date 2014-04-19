@@ -33,6 +33,54 @@ var Errors = {
 
 var IndexedDBBackend = AbstractBackend.extend({
 
+  'transactionQueue': [],
+
+  'isFlushingTransactionQueue': false,
+
+  'flushNextTransaction': function () {
+
+    var self = this;
+    var queue = self.transactionQueue;
+    var next;
+
+    if (queue.length) {
+      self.isFlushingTransactionQueue = true;
+      next = queue.shift();
+      next().always(function nextDone () {
+        // do not cach length !
+        if (queue.length) {
+          self.flushNextTransaction();
+        }
+        else {
+          self.isFlushingTransactionQueue = false;
+        }
+      });
+    }
+  },
+
+  'flushTransactionQueue': function () {
+
+    var self = this;
+
+    var length = self.transactionQueue.length;
+    var flushing = self.isFlushingTransactionQueue;
+
+    if (length && !flushing) {
+      self.flushNextTransaction();
+    }
+    else if (!length) {
+      self.isFlushingTransactionQueue = false;
+    }
+  },
+
+  'queueTransactionOperation': function (transactionFunction) {
+
+    var self = this;
+    self.transactionQueue.push(transactionFunction);
+
+    !self.isFlushingTransactionQueue && self.flushTransactionQueue();
+  },
+
   'openDB': function (name, version) {
 
     var self = this;
@@ -205,45 +253,57 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
     var deferred = new WBDeferred();
+    var promise = deferred.promise();
 
-    var transaction = self.db.transaction([storeName], Constants.WRITE);
-    var store = transaction.objectStore(storeName);
+    self.queueTransactionOperation(function updateTransaction () {
 
-    var request = store.put(json);
+      var transaction = self.db.transaction([storeName], Constants.WRITE);
+      var store = transaction.objectStore(storeName);
 
-    request.onsuccess = function () {
-      deferred.resolve();
-    };
+      var request = store.put(json);
 
-    request.onerror = function (error) {
-      self.trigger('error', Errors.updateFailed, error, storeName, json);
-      deferred.reject();
-    };
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
 
-    return deferred.promise();
+      request.onerror = function (error) {
+        self.trigger('error', Errors.updateFailed, error, storeName, json);
+        deferred.reject();
+      };
+
+      return promise;
+    });
+
+    return promise;
   },
 
   'destroy': function (storeName, json) {
 
     var self = this;
     var deferred = new WBDeferred();
+    var promise = deferred.promise();
 
-    var transaction = self.db.transaction([storeName], Constants.WRITE);
-    var store = transaction.objectStore(storeName);
-    var id = json[store.keyPath || self.defaultKeyPath] || json.id;
+    self.queueTransactionOperation(function destroyTransaction () {
 
-    var request = store['delete'](id);
+      var transaction = self.db.transaction([storeName], Constants.WRITE);
+      var store = transaction.objectStore(storeName);
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
-    request.onsuccess = function () {
-      deferred.resolve();
-    };
+      var request = store['delete'](id);
 
-    request.onerror = function (error) {
-      self.trigger('error', Errors.destroyFailed, error, storeName, json);
-      deferred.reject();
-    };
+      request.onsuccess = function () {
+        deferred.resolve();
+      };
 
-    return deferred.promise();
+      request.onerror = function (error) {
+        self.trigger('error', Errors.destroyFailed, error, storeName, json);
+        deferred.reject();
+      };
+
+      return promise;
+    });
+
+    return promise;
   },
 
   'nuke': function () {
