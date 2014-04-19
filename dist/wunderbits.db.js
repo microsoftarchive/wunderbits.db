@@ -2228,52 +2228,58 @@ var Errors = {
 
 var IndexedDBBackend = AbstractBackend.extend({
 
-  'transactionQueue': [],
+  'transactionQueue': {},
 
-  'isFlushingTransactionQueue': false,
+  'isFlushingTransactionQueue': {},
 
-  'flushNextTransaction': function () {
+  'flushNextTransaction': function (storeName) {
 
     var self = this;
-    var queue = self.transactionQueue;
+    var queue = self.transactionQueue[storeName];
     var next;
 
     if (queue.length) {
-      self.isFlushingTransactionQueue = true;
+      self.isFlushingTransactionQueue[storeName] = true;
       next = queue.shift();
       next().always(function nextDone () {
         // do not cach length !
         if (queue.length) {
-          self.flushNextTransaction();
+          self.flushNextTransaction(storeName);
         }
         else {
-          self.isFlushingTransactionQueue = false;
+          self.isFlushingTransactionQueue[storeName] = false;
         }
       });
     }
   },
 
-  'flushTransactionQueue': function () {
+  'flushTransactionQueue': function (storeName) {
 
     var self = this;
 
-    var length = self.transactionQueue.length;
-    var flushing = self.isFlushingTransactionQueue;
+    var queue = self.transactionQueue[storeName];
+    var length = queue.length;
+    var flushing = self.isFlushingTransactionQueue[storeName];
 
     if (length && !flushing) {
-      self.flushNextTransaction();
+      self.flushNextTransaction(storeName);
     }
     else if (!length) {
-      self.isFlushingTransactionQueue = false;
+      self.isFlushingTransactionQueue[storeName] = false;
     }
   },
 
-  'queueTransactionOperation': function (transactionFunction) {
+  'queueTransactionOperation': function (storeName, transactionFunction) {
 
     var self = this;
-    self.transactionQueue.push(transactionFunction);
 
-    !self.isFlushingTransactionQueue && self.flushTransactionQueue();
+    var queue = self.transactionQueue[storeName];
+    if (!queue) {
+      queue = self.transactionQueue[storeName] = [];
+    }
+    queue.push(transactionFunction);
+
+    !self.isFlushingTransactionQueue[storeName] && self.flushTransactionQueue(storeName);
   },
 
   'openDB': function (name, version) {
@@ -2450,7 +2456,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(function updateTransaction () {
+    self.queueTransactionOperation(storeName, function updateTransaction () {
 
       var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
@@ -2478,7 +2484,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(function destroyTransaction () {
+    self.queueTransactionOperation(storeName, function destroyTransaction () {
 
       var transaction = self.db.transaction([storeName], Constants.WRITE);
       var store = transaction.objectStore(storeName);
