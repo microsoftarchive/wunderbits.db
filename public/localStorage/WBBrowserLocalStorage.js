@@ -18,7 +18,7 @@ var WBBrowserLocalStorage = WBClass.extend({
 
     var deferred = new WBDeferred();
     var value = localStorage.getItem(key);
-    return deferred.resolve().promise(value);
+    return deferred.resolve(value).promise();
   },
 
   'setItem': function (key, value) {
