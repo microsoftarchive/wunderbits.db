@@ -38,6 +38,11 @@ describe('Database/Backends/WebSQL', function () {
       });
   });
 
+  after(function () {
+
+    dbInstance.backend.nuke();
+  });
+
   describe('type conversions', function () {
 
     var taskData;
@@ -81,6 +86,56 @@ describe('Database/Backends/WebSQL', function () {
       };
 
       dbInstance.crud.create('tasks', taskData).done(created);
+    });
+  });
+
+  describe('versioning', function () {
+
+    it ('should be upgradable', function (done) {
+
+      var dbName = 'specs-upgrade-' + ~~(Math.random() * 10e4);
+      var dbVersion = 10;
+
+      var dbInstance = new WBDatabase({
+        'schema': {
+          'database': {
+            'name': dbName,
+            'version': dbVersion
+          },
+          'stores': {
+            'tasks': {
+              'foo': 'bar'
+            }
+          }
+        }
+      });
+
+      dbInstance.init('websql')
+        .fail(function () {
+          throw new Error('Websql init failed');
+        });
+
+      var newVersion = 11.1;
+
+      var dbInstanceTwo = new WBDatabase({
+        'schema': {
+          'database': {
+            'name': dbName,
+            'version': newVersion
+          },
+          'stores': {
+            'tasks': {
+              'bar': 'foo'
+            }
+          }
+        }
+      });
+
+      dbInstanceTwo.init('websql')
+        .done(done)
+        .fail(function () {
+          throw new Error('Websql init failed');
+        });
     });
   });
 });

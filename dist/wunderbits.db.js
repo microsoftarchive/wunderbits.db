@@ -3039,7 +3039,7 @@ var WebSQLBackend = AbstractBackend.extend({
     var keyPath = storeInfo.keyPath || self.defaultKeyPath;
     var id = json[keyPath] || json.id;
 
-    var keys = [keyPath];
+    var keys = ['"' + keyPath + '"'];
     var values = ['\'' + id + '\''];
 
     var populate = self[fields ? 'populateFields': 'populateGeneric'];
