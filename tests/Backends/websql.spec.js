@@ -91,6 +91,8 @@ describe('Database/Backends/WebSQL', function () {
 
   describe('versioning', function () {
 
+    this.timeout(10000);
+
     it ('should be upgradable', function (done) {
 
       var dbName = 'specs-upgrade-' + ~~(Math.random() * 10e4);
@@ -111,28 +113,32 @@ describe('Database/Backends/WebSQL', function () {
       });
 
       dbInstance.init('websql')
-        .fail(function () {
-          throw new Error('Websql init failed');
-        });
+        .done(function () {
 
-      var newVersion = 11.1;
+          var newVersion = 11.1;
 
-      var dbInstanceTwo = new WBDatabase({
-        'schema': {
-          'database': {
-            'name': dbName,
-            'version': newVersion
-          },
-          'stores': {
-            'tasks': {
-              'bar': 'foo'
+          var dbInstanceTwo = new WBDatabase({
+            'schema': {
+              'database': {
+                'name': dbName,
+                'version': newVersion
+              },
+              'stores': {
+                'tasks': {
+                  'bar': 'foo'
+                }
+              }
             }
-          }
-        }
-      });
+          });
 
-      dbInstanceTwo.init('websql')
-        .done(done)
+          var promise = dbInstanceTwo.init('websql');
+          promise.done(function () {
+              done();
+            })
+            .fail(function () {
+              throw new Error('Websql init failed');
+            });
+        })
         .fail(function () {
           throw new Error('Websql init failed');
         });

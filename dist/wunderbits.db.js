@@ -2777,9 +2777,12 @@ var WebSQLBackend = AbstractBackend.extend({
 
       // check if we need to upgrade the schema
       if (db.version !== version) {
-        self.onUpgradeNeeded()
-          .done(self.openSuccess, self)
-          .fail(self.openFailure, self);
+        db.changeVersion(db.version || '', version, function () {
+
+          self.onUpgradeNeeded()
+            .done(self.openSuccess, self)
+            .fail(self.openFailure, self);
+        });
       }
       // schema correct
       else {
@@ -2798,6 +2801,7 @@ var WebSQLBackend = AbstractBackend.extend({
 
     // create a transaction
     self.db.transaction(function (transaction) {
+
       // execute the sql
       transaction.executeSql(sql, [], function (tx, result) {
         deferred.resolve(result);
@@ -2917,9 +2921,21 @@ var WebSQLBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function () {
 
     var self = this;
+
+    var deferred = new WBDeferred();
+
     self.trigger('upgrading');
     var storeCreationDeferreds = self.mapStores(self.createStore);
-    return when(storeCreationDeferreds).promise();
+
+    when(storeCreationDeferreds)
+      .done(function () {
+        deferred.resolve();
+      })
+      .fail(function () {
+        deferred.reject();
+      });
+
+    return deferred.promise();
   },
 
   'createStore': function (storeName, storeInfo) {
