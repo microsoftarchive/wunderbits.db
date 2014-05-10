@@ -105,9 +105,7 @@ describe('Database/Backends/WebSQL', function () {
             'version': dbVersion
           },
           'stores': {
-            'tasks': {
-              'foo': 'bar'
-            }
+            'lists': {}
           }
         }
       });
@@ -125,7 +123,9 @@ describe('Database/Backends/WebSQL', function () {
               },
               'stores': {
                 'tasks': {
-                  'bar': 'foo'
+                  'fields': {
+                    'bar': 'TEXT'
+                  }
                 }
               }
             }
@@ -133,7 +133,20 @@ describe('Database/Backends/WebSQL', function () {
 
           var promise = dbInstanceTwo.init('websql');
           promise.done(function () {
-              done();
+
+              dbInstanceTwo.backend.listTables()
+                .done(function (tables) {
+
+                  console.debug(tables);
+
+                  expect(tables).to.contain('tasks');
+                  expect(tables).to.not.contain('lists');
+                  done();
+                })
+                .fail(function () {
+
+                  done(new Error('Unable to list tables'));
+                });
             })
             .fail(function () {
               throw new Error('Websql init failed');
