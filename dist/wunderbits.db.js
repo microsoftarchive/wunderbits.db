@@ -2737,6 +2737,7 @@ var SQL = {
   'createTable': 'CREATE TABLE IF NOT EXISTS ? (? TEXT PRIMARY KEY, ?)',
   'truncateTable': 'DELETE FROM ?',
   'dropTable': 'DROP TABLE IF EXISTS ?',
+  'getAllTables': 'SELECT * FROM sqlite_master WHERE type=\'table\'',
 
   'read': 'SELECT * from ? WHERE ?=\'?\' LIMIT 1',
   'query': 'SELECT * from ?',
@@ -2777,9 +2778,12 @@ var WebSQLBackend = AbstractBackend.extend({
 
       // check if we need to upgrade the schema
       if (db.version !== version) {
-        self.onUpgradeNeeded()
-          .done(self.openSuccess, self)
-          .fail(self.openFailure, self);
+        db.changeVersion(db.version || '', version, function () {
+
+          self.onUpgradeNeeded()
+            .done(self.openSuccess, self)
+            .fail(self.openFailure, self);
+        });
       }
       // schema correct
       else {
@@ -2798,6 +2802,7 @@ var WebSQLBackend = AbstractBackend.extend({
 
     // create a transaction
     self.db.transaction(function (transaction) {
+
       // execute the sql
       transaction.executeSql(sql, [], function (tx, result) {
         deferred.resolve(result);
@@ -2917,9 +2922,47 @@ var WebSQLBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function () {
 
     var self = this;
+
+    var deferred = new WBDeferred();
+
     self.trigger('upgrading');
-    var storeCreationDeferreds = self.mapStores(self.createStore);
-    return when(storeCreationDeferreds).promise();
+
+    var storeClearPromises = self.mapStores(self.clearStore);
+    when(storeClearPromises).always(function () {
+
+      self.listTables()
+        .done(function (tables) {
+
+          tables = tables || [];
+
+          var dropPromises = tables.length ? tables.map(function (table) {
+            return self.dropStore(table);
+          }) : [];
+
+          when(dropPromises).always(function () {
+
+            var storeCreationDeferreds = self.mapStores(self.createStore);
+            when(storeCreationDeferreds)
+              .done(function () {
+                deferred.resolve();
+              })
+              .fail(function () {
+                deferred.reject();
+              });
+          })
+          .fail(function () {
+            console.warn('table drop failed');
+          });
+        })
+        .fail(function () {
+          console.warn('get tables failed');
+        });
+    })
+    .fail(function () {
+      console.warn('clear failed');
+    });
+
+    return deferred.promise();
   },
 
   'createStore': function (storeName, storeInfo) {
@@ -2958,6 +3001,20 @@ var WebSQLBackend = AbstractBackend.extend({
     return deferred.promise();
   },
 
+  'dropStore': function (storeName) {
+
+    var self = this;
+    var deferred = new WBDeferred();
+    var sql = printf(SQL.dropTable, storeName);
+    self.execute(sql)
+      .done(deferred.resolve, deferred)
+      .fail(function () {
+        deferred.reject();
+      });
+
+    return deferred.promise();
+  },
+
   'clearStore': function (storeName) {
 
     var self = this;
@@ -2969,6 +3026,29 @@ var WebSQLBackend = AbstractBackend.extend({
       .fail(function (error) {
         self.trigger('error', 'ERR_WS_CLEAR_FAILED', error, storeName);
         deferred.reject();
+      });
+
+    return deferred.promise();
+  },
+
+  'listTables': function () {
+
+    var self = this;
+    var deferred = new WBDeferred();
+
+    self.execute(SQL.getAllTables)
+      .done(function (result) {
+
+        var rows = result.rows;
+        var data;
+        var count = rows.length;
+        var returnRows = [];
+        for (var index = 1; index < count; index++) {
+          data = rows.item(index);
+          returnRows.push(data.name);
+        }
+
+        deferred.resolve(returnRows);
       });
 
     return deferred.promise();
@@ -3039,7 +3119,7 @@ var WebSQLBackend = AbstractBackend.extend({
     var keyPath = storeInfo.keyPath || self.defaultKeyPath;
     var id = json[keyPath] || json.id;
 
-    var keys = [keyPath];
+    var keys = ['"' + keyPath + '"'];
     var values = ['\'' + id + '\''];
 
     var populate = self[fields ? 'populateFields': 'populateGeneric'];

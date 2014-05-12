@@ -13,7 +13,8 @@ var BrowsersToTest = ENV.TRAVIS ? Object.keys(SupportedBrowsers) : [
 
 module.exports = function (config) {
 
-  var LogLevel = ENV.TRAVIS ? config.LOG_ERROR : config.LOG_INFO;
+  //ENV.TRAVIS ? config.LOG_ERROR : config.LOG_INFO;
+  var LogLevel = config.LOG_INFO;
 
   config.set({
     'basePath': '',
