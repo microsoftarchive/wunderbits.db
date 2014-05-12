@@ -32,9 +32,11 @@ TYPES[FieldTypes.Integer] = 'INTEGER';
 
 var WebSQLBackend = AbstractBackend.extend({
 
-  'dbSize': (5 * 1024 * 1024),
+  'properties': {
+    'dbSize': (5 * 1024 * 1024)
+  },
 
-  'openDB': function (name, version) {
+  'openDB': function (name, version, options) {
 
     var self = this;
     var readyDeferred = self.ready;
@@ -50,7 +52,8 @@ var WebSQLBackend = AbstractBackend.extend({
 
     try {
       // Safari needs the DB to initialized with **exactly** 5 mb storage
-      var db = openConnection(name, '', name, self.dbSize);
+      var dbSize = options.dbSize || self.dbSize;
+      var db = openConnection(name, '', name, dbSize);
       self.db = db;
 
       // WebSQL versions are strings

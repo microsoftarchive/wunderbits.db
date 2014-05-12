@@ -6,6 +6,7 @@ var WBDeferred = core.WBDeferred;
 var assert = core.lib.assert;
 var extend = core.lib.extend;
 var clone = core.lib.clone;
+var merge = core.lib.merge;
 
 var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
@@ -58,7 +59,7 @@ var WBDatabase = WBEventEmitter.extend({
     self.version = version;
   },
 
-  'init': function (backendName) {
+  'init': function (backendName, options) {
 
     var self = this;
 
@@ -74,8 +75,7 @@ var WBDatabase = WBEventEmitter.extend({
     var loggers = self.initLogger(backendName.toUpperCase());
     var stores = self.stores;
 
-    // try to init the available backend
-    self.initBackend(backendName, {
+    options = merge(options || {}, {
       'name': self.name,
       'version': self.version,
       'stores': stores,
@@ -83,6 +83,9 @@ var WBDatabase = WBEventEmitter.extend({
       'errorLog': loggers.error,
       'localStorageAvailable': localStorageAvailable
     });
+
+    // try to init the available backend
+    self.initBackend(backendName, options);
 
     return ready.promise();
   },

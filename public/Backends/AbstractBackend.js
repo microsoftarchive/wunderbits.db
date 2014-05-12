@@ -29,7 +29,7 @@ var AbstractBackend = WBEventEmitter.extend({
     self.options = self.options || {};
     self.options.db = options;
     self.stores = options.stores;
-    self.openDB(options.name, options.version);
+    self.openDB(options.name, options.version, options);
     return self.ready.promise();
   },
 
