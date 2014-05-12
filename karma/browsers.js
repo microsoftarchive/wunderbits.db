@@ -23,12 +23,12 @@ module.exports = {
   //   'os': 'OS X',
   //   'os_version': 'Mavericks'
   // },
-  // 'remote_safari_osx': {
-  //   'base': 'BrowserStack',
-  //   'browser': 'safari',
-  //   'os': 'OS X',
-  //   'os_version': 'Mavericks'
-  // },
+  'remote_safari_osx': {
+    'base': 'BrowserStack',
+    'browser': 'safari',
+    'os': 'OS X',
+    'os_version': 'Mavericks'
+  },
   // 'remote_ie10_windows7': {
   //   'base': 'BrowserStack',
   //   'browser': 'ie',
