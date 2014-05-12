@@ -38,6 +38,6 @@
     "gulp-cjs": "0.0.2"
   },
   "dependencies": {
-    "wunderbits.core": "^0.1.3"
+    "wunderbits.core": "^0.1.7"
   }
 }

@@ -40,6 +40,7 @@ server:
 	@$(GULP) tests watch server
 
 start: install server
+test: karma
 
 documentation:
 	rm -rf ./docs/*

@@ -4,3 +4,4 @@ npm_debug.log
 docs/*
 build
 coverage
+dist/wunderbits.db.min.js
