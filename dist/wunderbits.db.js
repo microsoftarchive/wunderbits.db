@@ -2198,6 +2198,7 @@ module.exports = AbstractBackend;
 var core = _dereq_('wunderbits.core');
 var WBDeferred = core.WBDeferred;
 var toArray = core.lib.toArray;
+var when = core.lib.when;
 
 var AbstractBackend = _dereq_('./AbstractBackend');
 
@@ -2250,7 +2251,7 @@ var IndexedDBBackend = AbstractBackend.extend({
         var promise = operation(transaction)
       });
 
-      self.when(nextInLine).always(function nextDone (transaction) {
+      when(nextInLine).always(function nextDone (transaction) {
 
         var args = toArray(arguments);
         var lastArg = args[args.length - 1];
