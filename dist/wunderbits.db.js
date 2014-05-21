@@ -2238,6 +2238,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
     var queue = self.transactionQueue[storeName];
+    var allDone = [];
     var limit = 100;
     var next;
 
@@ -2249,9 +2250,10 @@ var IndexedDBBackend = AbstractBackend.extend({
       nextInLine.forEach(function (operation) {
 
         var promise = operation(transaction)
+        allDone.push(promise);
       });
 
-      when(nextInLine).always(function nextDone (transaction) {
+      when(allDone).always(function nextDone (transaction) {
 
         var args = toArray(arguments);
         var lastArg = args[args.length - 1];
