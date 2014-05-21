@@ -1209,13 +1209,27 @@ module.exports = size;
 },{}],27:[function(_dereq_,module,exports){
 'use strict';
 
-var slice = Array.prototype.slice;
-function toArray (obj, skip) {
-  return slice.call(obj, skip || 0);
+function getAllocatedArray (arrLength) {
+
+  arrLength = arrLength > 0 ? arrLength : 0;
+  return new Array(arrLength);
+}
+
+function toArray (arrayLikeObj, skip) {
+
+  skip = skip || 0;
+
+  var length = arrayLikeObj.length;
+  var arr = getAllocatedArray(length - skip);
+
+  for (var i = skip; i < length; i++) {
+    arr[i - skip] = arrayLikeObj[i];
+  }
+
+  return arr;
 }
 
 module.exports = toArray;
-
 },{}],28:[function(_dereq_,module,exports){
 'use strict';
 
@@ -2130,7 +2144,7 @@ var AbstractBackend = WBEventEmitter.extend({
     self.options = self.options || {};
     self.options.db = options;
     self.stores = options.stores;
-    self.openDB(options.name, options.version);
+    self.openDB(options.name, options.version, options);
     return self.ready.promise();
   },
 
@@ -2752,9 +2766,11 @@ TYPES[FieldTypes.Integer] = 'INTEGER';
 
 var WebSQLBackend = AbstractBackend.extend({
 
-  'dbSize': (5 * 1024 * 1024),
+  'properties': {
+    'dbSize': (5 * 1024 * 1024)
+  },
 
-  'openDB': function (name, version) {
+  'openDB': function (name, version, options) {
 
     var self = this;
     var readyDeferred = self.ready;
@@ -2770,7 +2786,8 @@ var WebSQLBackend = AbstractBackend.extend({
 
     try {
       // Safari needs the DB to initialized with **exactly** 5 mb storage
-      var db = openConnection(name, '', name, self.dbSize);
+      var dbSize = options.dbSize || self.dbSize;
+      var db = openConnection(name, '', name, dbSize);
       self.db = db;
 
       // WebSQL versions are strings
@@ -3192,6 +3209,7 @@ var WBDeferred = core.WBDeferred;
 var assert = core.lib.assert;
 var extend = core.lib.extend;
 var clone = core.lib.clone;
+var merge = core.lib.merge;
 
 var MemoryBackend = _dereq_('./Backends/MemoryBackend');
 var WebSQLBackend = _dereq_('./Backends/WebSQLBackend');
@@ -3244,7 +3262,7 @@ var WBDatabase = WBEventEmitter.extend({
     self.version = version;
   },
 
-  'init': function (backendName) {
+  'init': function (backendName, options) {
 
     var self = this;
 
@@ -3260,8 +3278,7 @@ var WBDatabase = WBEventEmitter.extend({
     var loggers = self.initLogger(backendName.toUpperCase());
     var stores = self.stores;
 
-    // try to init the available backend
-    self.initBackend(backendName, {
+    options = merge(options || {}, {
       'name': self.name,
       'version': self.version,
       'stores': stores,
@@ -3269,6 +3286,9 @@ var WBDatabase = WBEventEmitter.extend({
       'errorLog': loggers.error,
       'localStorageAvailable': localStorageAvailable
     });
+
+    // try to init the available backend
+    self.initBackend(backendName, options);
 
     return ready.promise();
   },
