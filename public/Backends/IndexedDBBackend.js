@@ -3,6 +3,7 @@
 var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
 var toArray = core.lib.toArray;
+var when = core.lib.when;
 
 var AbstractBackend = require('./AbstractBackend');
 
@@ -55,7 +56,7 @@ var IndexedDBBackend = AbstractBackend.extend({
         var promise = operation(transaction)
       });
 
-      self.when(nextInLine).always(function nextDone (transaction) {
+      when(nextInLine).always(function nextDone (transaction) {
 
         var args = toArray(arguments);
         var lastArg = args[args.length - 1];
