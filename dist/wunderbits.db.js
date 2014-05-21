@@ -167,12 +167,15 @@ var stateNames = {
 
 var proto = {
 
-  'constructor': function (context) {
+  'properties': {
+    '_state': states.pending,
+    '_args': [],
+    'handlers': []
+  },
+
+  'initialize': function (context) {
     var self = this;
     self._context = context;
-    self._state = states.pending;
-    self._args = [];
-    self.handlers = [];
   },
 
   'state': function () {
@@ -630,7 +633,7 @@ function cloneArray (arr, isDeep) {
 }
 
 function cloneDate (date) {
-  return new Date(date);
+  return new Date(date.getTime());
 }
 
 function cloneObject (source, isDeep) {
@@ -1312,7 +1315,7 @@ module.exports = where;
 var WBMixin = _dereq_('../WBMixin');
 var fromSuper = _dereq_('../lib/fromSuper');
 
-var ControllerMixin = WBMixin.extend({
+var ControllableMixin = WBMixin.extend({
 
   'initialize': function () {
 
@@ -1324,15 +1327,21 @@ var ControllerMixin = WBMixin.extend({
     self.implements = fromSuper.concat(self, 'implements');
     self.createControllerInstances();
 
-    self.bindTo(self, 'destroy', 'destroyControllers');
+    self.bindOnceTo(self, 'destroy', 'destroyControllers');
   },
 
   'createControllerInstances': function () {
 
     var self = this;
-    var ControllerClass, controllerInstance, i;
-    var Controllers = self.implements;
 
+    var Controllers = self.implements;
+    if (typeof Controllers === 'function') {
+      Controllers = Controllers.call(self);
+    }
+
+    var ControllerClass, controllerInstance, i;
+
+    // the order in which the controllers are implemented is important!
     for (i = Controllers.length; i--;) {
       ControllerClass = Controllers[i];
 
@@ -1344,7 +1353,7 @@ var ControllerMixin = WBMixin.extend({
         self.controllers.push(controllerInstance);
         controllerInstance.parent = self;
 
-        self.trackImplementedSuperConstructors(controllerInstance);
+        self.trackImplementedSuperConstructors(ControllerClass);
       }
     }
 
@@ -1371,20 +1380,17 @@ var ControllerMixin = WBMixin.extend({
     var controller;
     var controllers = self.controllers;
 
-    for (var i = controllers.length; i--;) {
-
+    while (controllers.length) {
       // A controller can exist multiple times in the list,
       // since it's based on the event name,
       // so make sure to only destroy each one once
-      controller = controllers[i];
+      controller = controllers.shift();
       controller.destroyed || controller.destroy();
     }
-
-    delete self.controllers;
   }
 });
 
-module.exports = ControllerMixin;
+module.exports = ControllableMixin;
 
 },{"../WBMixin":6,"../lib/fromSuper":20}],31:[function(_dereq_,module,exports){
 'use strict';
@@ -1745,10 +1751,10 @@ var WBDestroyableMixin = WBMixin.extend({
 
     var self = this;
 
+    self.trigger('destroy');
+
     // clean up
     forEach(cleanupMethods, Call, self);
-
-    self.trigger('destroy');
 
     self.destroyObject(self);
 
@@ -1968,7 +1974,7 @@ module.exports = WBUtilsMixin;
 'use strict';
 
 module.exports = {
-  'ControllerMixin': _dereq_('./ControllerMixin'),
+  'ControllableMixin': _dereq_('./ControllableMixin'),
   'ObservableHashMixin': _dereq_('./ObservableHashMixin'),
   'WBBindableMixin': _dereq_('./WBBindableMixin'),
   'WBDestroyableMixin': _dereq_('./WBDestroyableMixin'),
@@ -1976,7 +1982,7 @@ module.exports = {
   'WBStateMixin': _dereq_('./WBStateMixin'),
   'WBUtilsMixin': _dereq_('./WBUtilsMixin')
 };
-},{"./ControllerMixin":30,"./ObservableHashMixin":31,"./WBBindableMixin":32,"./WBDestroyableMixin":33,"./WBEventsMixin":34,"./WBStateMixin":35,"./WBUtilsMixin":36}],38:[function(_dereq_,module,exports){
+},{"./ControllableMixin":30,"./ObservableHashMixin":31,"./WBBindableMixin":32,"./WBDestroyableMixin":33,"./WBEventsMixin":34,"./WBStateMixin":35,"./WBUtilsMixin":36}],38:[function(_dereq_,module,exports){
 'use strict';
 
 var core = _dereq_('wunderbits.core');
