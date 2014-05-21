@@ -2290,7 +2290,6 @@ var IndexedDBBackend = AbstractBackend.extend({
     var queue = self.transactionQueue[storeName];
     var allDone = [];
     var limit = 100;
-    var next;
 
     if (queue.length) {
       self.isFlushingTransactionQueue[storeName] = true;
@@ -2299,7 +2298,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
       nextInLine.forEach(function (operation) {
 
-        var promise = operation(transaction)
+        var promise = operation(transaction);
         allDone.push(promise);
       });
 
