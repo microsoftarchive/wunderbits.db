@@ -2,6 +2,7 @@
 
 var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
+var toArray = core.lib.toArray;
 
 var AbstractBackend = require('./AbstractBackend');
 
@@ -37,19 +38,31 @@ var IndexedDBBackend = AbstractBackend.extend({
 
   'isFlushingTransactionQueue': {},
 
-  'flushNextTransaction': function (storeName, transaction) {
+  'flushNextTransactions': function (storeName, transaction) {
 
     var self = this;
     var queue = self.transactionQueue[storeName];
+    var limit = 5;
     var next;
 
     if (queue.length) {
       self.isFlushingTransactionQueue[storeName] = true;
-      next = queue.shift();
-      next(transaction).always(function nextDone (resp, transaction) {
-        // do not cach length !
+
+      var nextInLine = queue.slice(0, limit);
+
+      nextInLine.forEach(function (operation) {
+
+        var promise = operation(transaction)
+      });
+
+      self.when(nextInLine).always(function nextDone (transaction) {
+
+        var args = toArray(arguments);
+        var lastArg = args[args.length - 1];
+        transaction = lastArg && lastArg[1];
+
         if (queue.length) {
-          self.flushNextTransaction(storeName, transaction);
+          self.flushNextTransactions(storeName, transaction);
         }
         else {
           self.isFlushingTransactionQueue[storeName] = false;
@@ -67,7 +80,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var flushing = self.isFlushingTransactionQueue[storeName];
 
     if (length && !flushing) {
-      self.flushNextTransaction(storeName);
+      self.flushNextTransactions(storeName);
     }
     else if (!length) {
       self.isFlushingTransactionQueue[storeName] = false;
@@ -341,4 +354,3 @@ var IndexedDBBackend = AbstractBackend.extend({
 });
 
 module.exports = IndexedDBBackend;
-
