@@ -42,7 +42,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
     var queue = self.transactionQueue[storeName];
-    var limit = 5;
+    var limit = 100;
     var next;
 
     if (queue.length) {

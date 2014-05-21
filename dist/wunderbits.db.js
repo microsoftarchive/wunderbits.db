@@ -167,15 +167,12 @@ var stateNames = {
 
 var proto = {
 
-  'properties': {
-    '_state': states.pending,
-    '_args': [],
-    'handlers': []
-  },
-
-  'initialize': function (context) {
+  'constructor': function (context) {
     var self = this;
     self._context = context;
+    self._state = states.pending;
+    self._args = [];
+    self.handlers = [];
   },
 
   'state': function () {
@@ -633,7 +630,7 @@ function cloneArray (arr, isDeep) {
 }
 
 function cloneDate (date) {
-  return new Date(date.getTime());
+  return new Date(date);
 }
 
 function cloneObject (source, isDeep) {
@@ -1345,7 +1342,7 @@ module.exports = where;
 var WBMixin = _dereq_('../WBMixin');
 var fromSuper = _dereq_('../lib/fromSuper');
 
-var ControllableMixin = WBMixin.extend({
+var ControllerMixin = WBMixin.extend({
 
   'initialize': function () {
 
@@ -1357,21 +1354,15 @@ var ControllableMixin = WBMixin.extend({
     self.implements = fromSuper.concat(self, 'implements');
     self.createControllerInstances();
 
-    self.bindOnceTo(self, 'destroy', 'destroyControllers');
+    self.bindTo(self, 'destroy', 'destroyControllers');
   },
 
   'createControllerInstances': function () {
 
     var self = this;
-
-    var Controllers = self.implements;
-    if (typeof Controllers === 'function') {
-      Controllers = Controllers.call(self);
-    }
-
     var ControllerClass, controllerInstance, i;
+    var Controllers = self.implements;
 
-    // the order in which the controllers are implemented is important!
     for (i = Controllers.length; i--;) {
       ControllerClass = Controllers[i];
 
@@ -1383,7 +1374,7 @@ var ControllableMixin = WBMixin.extend({
         self.controllers.push(controllerInstance);
         controllerInstance.parent = self;
 
-        self.trackImplementedSuperConstructors(ControllerClass);
+        self.trackImplementedSuperConstructors(controllerInstance);
       }
     }
 
@@ -1410,17 +1401,20 @@ var ControllableMixin = WBMixin.extend({
     var controller;
     var controllers = self.controllers;
 
-    while (controllers.length) {
+    for (var i = controllers.length; i--;) {
+
       // A controller can exist multiple times in the list,
       // since it's based on the event name,
       // so make sure to only destroy each one once
-      controller = controllers.shift();
+      controller = controllers[i];
       controller.destroyed || controller.destroy();
     }
+
+    delete self.controllers;
   }
 });
 
-module.exports = ControllableMixin;
+module.exports = ControllerMixin;
 
 },{"../WBMixin":6,"../lib/fromSuper":20}],31:[function(_dereq_,module,exports){
 'use strict';
@@ -1781,10 +1775,10 @@ var WBDestroyableMixin = WBMixin.extend({
 
     var self = this;
 
-    self.trigger('destroy');
-
     // clean up
     forEach(cleanupMethods, Call, self);
+
+    self.trigger('destroy');
 
     self.destroyObject(self);
 
@@ -2004,7 +1998,7 @@ module.exports = WBUtilsMixin;
 'use strict';
 
 module.exports = {
-  'ControllableMixin': _dereq_('./ControllableMixin'),
+  'ControllerMixin': _dereq_('./ControllerMixin'),
   'ObservableHashMixin': _dereq_('./ObservableHashMixin'),
   'WBBindableMixin': _dereq_('./WBBindableMixin'),
   'WBDestroyableMixin': _dereq_('./WBDestroyableMixin'),
@@ -2012,7 +2006,7 @@ module.exports = {
   'WBStateMixin': _dereq_('./WBStateMixin'),
   'WBUtilsMixin': _dereq_('./WBUtilsMixin')
 };
-},{"./ControllableMixin":30,"./ObservableHashMixin":31,"./WBBindableMixin":32,"./WBDestroyableMixin":33,"./WBEventsMixin":34,"./WBStateMixin":35,"./WBUtilsMixin":36}],38:[function(_dereq_,module,exports){
+},{"./ControllerMixin":30,"./ObservableHashMixin":31,"./WBBindableMixin":32,"./WBDestroyableMixin":33,"./WBEventsMixin":34,"./WBStateMixin":35,"./WBUtilsMixin":36}],38:[function(_dereq_,module,exports){
 'use strict';
 
 var core = _dereq_('wunderbits.core');
@@ -2247,6 +2241,7 @@ module.exports = AbstractBackend;
 
 var core = _dereq_('wunderbits.core');
 var WBDeferred = core.WBDeferred;
+var toArray = core.lib.toArray;
 
 var AbstractBackend = _dereq_('./AbstractBackend');
 
@@ -2282,19 +2277,31 @@ var IndexedDBBackend = AbstractBackend.extend({
 
   'isFlushingTransactionQueue': {},
 
-  'flushNextTransaction': function (storeName, transaction) {
+  'flushNextTransactions': function (storeName, transaction) {
 
     var self = this;
     var queue = self.transactionQueue[storeName];
+    var limit = 100;
     var next;
 
     if (queue.length) {
       self.isFlushingTransactionQueue[storeName] = true;
-      next = queue.shift();
-      next(transaction).always(function nextDone (resp, transaction) {
-        // do not cach length !
+
+      var nextInLine = queue.slice(0, limit);
+
+      nextInLine.forEach(function (operation) {
+
+        var promise = operation(transaction)
+      });
+
+      self.when(nextInLine).always(function nextDone (transaction) {
+
+        var args = toArray(arguments);
+        var lastArg = args[args.length - 1];
+        transaction = lastArg && lastArg[1];
+
         if (queue.length) {
-          self.flushNextTransaction(storeName, transaction);
+          self.flushNextTransactions(storeName, transaction);
         }
         else {
           self.isFlushingTransactionQueue[storeName] = false;
@@ -2312,7 +2319,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var flushing = self.isFlushingTransactionQueue[storeName];
 
     if (length && !flushing) {
-      self.flushNextTransaction(storeName);
+      self.flushNextTransactions(storeName);
     }
     else if (!length) {
       self.isFlushingTransactionQueue[storeName] = false;
@@ -2586,7 +2593,6 @@ var IndexedDBBackend = AbstractBackend.extend({
 });
 
 module.exports = IndexedDBBackend;
-
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./AbstractBackend":39,"wunderbits.core":10}],41:[function(_dereq_,module,exports){
