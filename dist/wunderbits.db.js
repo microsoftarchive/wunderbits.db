@@ -2259,7 +2259,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     if (queue.length) {
       self.isFlushingTransactionQueue[storeName] = true;
 
-      var nextInLine = queue.slice(0, limit);
+      var nextInLine = queue.splice(0, limit);
 
       nextInLine.forEach(function (operation) {
 
