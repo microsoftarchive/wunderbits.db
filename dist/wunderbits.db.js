@@ -2118,6 +2118,7 @@ module.exports = BackboneDBSync;
 var core = _dereq_('wunderbits.core');
 var WBEventEmitter = core.WBEventEmitter;
 var WBDeferred = core.WBDeferred;
+var toArray = core.lib.toArray;
 var when = core.lib.when;
 var assert = core.lib.assert;
 
@@ -2136,6 +2137,9 @@ var AbstractBackend = WBEventEmitter.extend({
     assert(self.constructor !== AbstractBackend, Errors.init);
 
     self.ready = new WBDeferred();
+
+    self.transactionQueue = {};
+    self.isFlushingTransactionQueue = {};
   },
 
   'connect': function (options) {
@@ -2207,53 +2211,6 @@ var AbstractBackend = WBEventEmitter.extend({
     return deferred.promise();
   },
 
-});
-
-module.exports = AbstractBackend;
-
-},{"wunderbits.core":10}],40:[function(_dereq_,module,exports){
-(function (global){
-'use strict';
-
-var core = _dereq_('wunderbits.core');
-var WBDeferred = core.WBDeferred;
-var toArray = core.lib.toArray;
-var when = core.lib.when;
-
-var AbstractBackend = _dereq_('./AbstractBackend');
-
-var DOMError = global.DOMError || global.DOMException;
-var indexedDB = global.indexedDB ||
-                global.webkitIndexedDB ||
-                global.mozIndexedDB ||
-                global.msIndexedDB;
-
-var Constants = {
-  'READ': 'readonly',
-  'WRITE': 'readwrite'
-};
-
-var Errors = {
-  'privateMode': 'ERR_IDB_FIREFOX_PRIVATE_MODE',
-  'downgrade': 'ERR_IDB_CANT_DOWNGRADE_VERSION',
-  'unknown': 'ERR_IDB_UNKNOWN',
-  'upgradeBrowser': 'ERR_IDB_UPGRADE_BROWSER',
-  'storeCreationFailed': 'ERR_IDB_STORE_CREATION_FAILED',
-  'storeClearFailed': 'ERR_IDB_STORE_CLEAR_FAILED',
-  'notFound': 'ERR_IDB_OBJECT_NOT_FOUND',
-  'getFailed': 'ERR_IDB_STORE_GET_FAILED',
-  'cursorFailed': 'ERR_IDB_CANT_OPEN_CURSOR',
-  'queryFailed': 'ERR_IDB_QUERY_FAILED',
-  'updateFailed': 'ERR_IDB_STORE_UPDATE_FAILED',
-  'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
-};
-
-var IndexedDBBackend = AbstractBackend.extend({
-
-  'transactionQueue': {},
-
-  'isFlushingTransactionQueue': {},
-
   'flushNextTransactions': function (storeName, transaction) {
 
     var self = this;
@@ -2316,6 +2273,47 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     !self.isFlushingTransactionQueue[storeName] && self.flushTransactionQueue(storeName);
   },
+
+});
+
+module.exports = AbstractBackend;
+
+},{"wunderbits.core":10}],40:[function(_dereq_,module,exports){
+(function (global){
+'use strict';
+
+var core = _dereq_('wunderbits.core');
+var WBDeferred = core.WBDeferred;
+
+var AbstractBackend = _dereq_('./AbstractBackend');
+
+var DOMError = global.DOMError || global.DOMException;
+var indexedDB = global.indexedDB ||
+                global.webkitIndexedDB ||
+                global.mozIndexedDB ||
+                global.msIndexedDB;
+
+var Constants = {
+  'READ': 'readonly',
+  'WRITE': 'readwrite'
+};
+
+var Errors = {
+  'privateMode': 'ERR_IDB_FIREFOX_PRIVATE_MODE',
+  'downgrade': 'ERR_IDB_CANT_DOWNGRADE_VERSION',
+  'unknown': 'ERR_IDB_UNKNOWN',
+  'upgradeBrowser': 'ERR_IDB_UPGRADE_BROWSER',
+  'storeCreationFailed': 'ERR_IDB_STORE_CREATION_FAILED',
+  'storeClearFailed': 'ERR_IDB_STORE_CLEAR_FAILED',
+  'notFound': 'ERR_IDB_OBJECT_NOT_FOUND',
+  'getFailed': 'ERR_IDB_STORE_GET_FAILED',
+  'cursorFailed': 'ERR_IDB_CANT_OPEN_CURSOR',
+  'queryFailed': 'ERR_IDB_QUERY_FAILED',
+  'updateFailed': 'ERR_IDB_STORE_UPDATE_FAILED',
+  'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
+};
+
+var IndexedDBBackend = AbstractBackend.extend({
 
   'openDB': function (name, version) {
 
@@ -2497,7 +2495,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(storeName, function updateTransaction (storeTransaction) {
+    self.queueTransactionOperation(storeName, function IDBUpdateTransaction (storeTransaction) {
 
       var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
       var store = transaction.objectStore(storeName);
@@ -3143,39 +3141,45 @@ var WebSQLBackend = AbstractBackend.extend({
 
     var self = this;
     var deferred = new WBDeferred();
+    var promise = deferred.promise();
 
-    var storeInfo = self.stores[storeName];
-    var fields = storeInfo.fields;
+    self.queueTransactionOperation(storeName, function WebSQLUpdateTransaction () {
 
-    var keyPath = storeInfo.keyPath || self.defaultKeyPath;
-    var id = json[keyPath] || json.id;
+      var storeInfo = self.stores[storeName];
+      var fields = storeInfo.fields;
 
-    var keys = ['"' + keyPath + '"'];
-    var values = ['\'' + id + '\''];
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var id = json[keyPath] || json.id;
 
-    var populate = self[fields ? 'populateFields': 'populateGeneric'];
-    populate.call(self, keys, values, json, fields, keyPath);
+      var keys = ['"' + keyPath + '"'];
+      var values = ['\'' + id + '\''];
 
-    var sql = printf(SQL.upsert, storeName, keys, values);
-    try {
+      var populate = self[fields ? 'populateFields': 'populateGeneric'];
+      populate.call(self, keys, values, json, fields, keyPath);
 
-      self.execute(sql)
-        .done(function () {
-          deferred.resolve();
-        })
-        .fail(function (error) {
-          self.trigger('error', 'ERR_WS_UPDATE_FAILED',
-              error, storeName, json);
-          deferred.reject();
-        });
-    }
-    catch (error) {
-      self.trigger('error', 'ERR_WS_UPDATE_FAILED',
-          error, storeName, json);
-      deferred.reject();
-    }
+      var sql = printf(SQL.upsert, storeName, keys, values);
+      try {
 
-    return deferred.promise();
+        self.execute(sql)
+          .done(function () {
+            deferred.resolve();
+          })
+          .fail(function (error) {
+            self.trigger('error', 'ERR_WS_UPDATE_FAILED',
+                error, storeName, json);
+            deferred.reject();
+          });
+      }
+      catch (error) {
+        self.trigger('error', 'ERR_WS_UPDATE_FAILED',
+            error, storeName, json);
+        deferred.reject();
+      }
+
+      return promise;
+    });
+
+    return promise;
   },
 
   'destroy': function (storeName, json) {
