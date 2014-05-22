@@ -395,39 +395,45 @@ var WebSQLBackend = AbstractBackend.extend({
 
     var self = this;
     var deferred = new WBDeferred();
+    var promise = deferred.promise();
 
-    var storeInfo = self.stores[storeName];
-    var fields = storeInfo.fields;
+    self.queueTransactionOperation(storeName, function WebSQLUpdateTransaction () {
 
-    var keyPath = storeInfo.keyPath || self.defaultKeyPath;
-    var id = json[keyPath] || json.id;
+      var storeInfo = self.stores[storeName];
+      var fields = storeInfo.fields;
 
-    var keys = ['"' + keyPath + '"'];
-    var values = ['\'' + id + '\''];
+      var keyPath = storeInfo.keyPath || self.defaultKeyPath;
+      var id = json[keyPath] || json.id;
 
-    var populate = self[fields ? 'populateFields': 'populateGeneric'];
-    populate.call(self, keys, values, json, fields, keyPath);
+      var keys = ['"' + keyPath + '"'];
+      var values = ['\'' + id + '\''];
 
-    var sql = printf(SQL.upsert, storeName, keys, values);
-    try {
+      var populate = self[fields ? 'populateFields': 'populateGeneric'];
+      populate.call(self, keys, values, json, fields, keyPath);
 
-      self.execute(sql)
-        .done(function () {
-          deferred.resolve();
-        })
-        .fail(function (error) {
-          self.trigger('error', 'ERR_WS_UPDATE_FAILED',
-              error, storeName, json);
-          deferred.reject();
-        });
-    }
-    catch (error) {
-      self.trigger('error', 'ERR_WS_UPDATE_FAILED',
-          error, storeName, json);
-      deferred.reject();
-    }
+      var sql = printf(SQL.upsert, storeName, keys, values);
+      try {
 
-    return deferred.promise();
+        self.execute(sql)
+          .done(function () {
+            deferred.resolve();
+          })
+          .fail(function (error) {
+            self.trigger('error', 'ERR_WS_UPDATE_FAILED',
+                error, storeName, json);
+            deferred.reject();
+          });
+      }
+      catch (error) {
+        self.trigger('error', 'ERR_WS_UPDATE_FAILED',
+            error, storeName, json);
+        deferred.reject();
+      }
+
+      return promise;
+    });
+
+    return promise;
   },
 
   'destroy': function (storeName, json) {

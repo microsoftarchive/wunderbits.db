@@ -2,8 +2,6 @@
 
 var core = require('wunderbits.core');
 var WBDeferred = core.WBDeferred;
-var toArray = core.lib.toArray;
-var when = core.lib.when;
 
 var AbstractBackend = require('./AbstractBackend');
 
@@ -34,73 +32,6 @@ var Errors = {
 };
 
 var IndexedDBBackend = AbstractBackend.extend({
-
-  'transactionQueue': {},
-
-  'isFlushingTransactionQueue': {},
-
-  'flushNextTransactions': function (storeName, transaction) {
-
-    var self = this;
-    var queue = self.transactionQueue[storeName];
-    var allDone = [];
-    var limit = 100;
-
-    if (queue.length) {
-      self.isFlushingTransactionQueue[storeName] = true;
-
-      var nextInLine = queue.splice(0, limit);
-
-      nextInLine.forEach(function (operation) {
-
-        var promise = operation(transaction);
-        allDone.push(promise);
-      });
-
-      when(allDone).always(function nextDone (transaction) {
-
-        var args = toArray(arguments);
-        var lastArg = args[args.length - 1];
-        transaction = lastArg && lastArg[1];
-
-        if (queue.length) {
-          self.flushNextTransactions(storeName, transaction);
-        }
-        else {
-          self.isFlushingTransactionQueue[storeName] = false;
-        }
-      });
-    }
-  },
-
-  'flushTransactionQueue': function (storeName) {
-
-    var self = this;
-
-    var queue = self.transactionQueue[storeName];
-    var length = queue.length;
-    var flushing = self.isFlushingTransactionQueue[storeName];
-
-    if (length && !flushing) {
-      self.flushNextTransactions(storeName);
-    }
-    else if (!length) {
-      self.isFlushingTransactionQueue[storeName] = false;
-    }
-  },
-
-  'queueTransactionOperation': function (storeName, transactionFunction) {
-
-    var self = this;
-
-    var queue = self.transactionQueue[storeName];
-    if (!queue) {
-      queue = self.transactionQueue[storeName] = [];
-    }
-    queue.push(transactionFunction);
-
-    !self.isFlushingTransactionQueue[storeName] && self.flushTransactionQueue(storeName);
-  },
 
   'openDB': function (name, version) {
 
@@ -282,7 +213,7 @@ var IndexedDBBackend = AbstractBackend.extend({
     var deferred = new WBDeferred();
     var promise = deferred.promise();
 
-    self.queueTransactionOperation(storeName, function updateTransaction (storeTransaction) {
+    self.queueTransactionOperation(storeName, function IDBUpdateTransaction (storeTransaction) {
 
       var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
       var store = transaction.objectStore(storeName);
