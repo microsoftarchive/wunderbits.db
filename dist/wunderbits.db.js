@@ -2113,13 +2113,20 @@ var BackboneDBSync = WBEventEmitter.extend({
         }
 
         // trigger events for syncing
-        if (/(create|update|destroy)/.test(method)) {
+        if (/(create|update|delete)/.test(method)) {
           self.database.trigger(method, storeName, id);
         }
 
         // Update full-text index when needed
         if ('fullTextIndexFields' in storeInfo) {
           self.trigger('index', method, storeName, instance);
+        }
+
+        if (/(create|update)/.test(method)) {
+          self.trigger('write', storeName, id);
+        }
+        else if (/delete/.test(method)) {
+          self.trigger('destroy', storeName, id);
         }
       };
 
