@@ -98,7 +98,7 @@ var BackboneDBSync = WBEventEmitter.extend({
         }
 
         // trigger events for syncing
-        if (/(create|update|destroy)/.test(method)) {
+        if (/(create|update|delete)/.test(method)) {
           self.database.trigger(method, storeName, id);
         }
 
@@ -110,10 +110,9 @@ var BackboneDBSync = WBEventEmitter.extend({
         if (/(create|update)/.test(method)) {
           self.trigger('write', storeName, id);
         }
-        else if (/destroy/.test(method)) {
+        else if (/delete/.test(method)) {
           self.trigger('destroy', storeName, id);
         }
-
       };
 
       var request;
