@@ -106,6 +106,14 @@ var BackboneDBSync = WBEventEmitter.extend({
         if ('fullTextIndexFields' in storeInfo) {
           self.trigger('index', method, storeName, instance);
         }
+
+        if (/(create|update)/.test(method)) {
+          self.trigger('write', storeName, id);
+        }
+        else if (/destroy/.test(method)) {
+          self.trigger('destroy', storeName, id);
+        }
+
       };
 
       var request;
