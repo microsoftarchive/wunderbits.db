@@ -61,7 +61,7 @@ var WBChromeLocalStorage = WBClass.extend({
       }
     });
 
-    return deferred.promis();
+    return deferred.promise();
   },
 
   'clear': function () {
