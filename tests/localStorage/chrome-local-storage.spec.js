@@ -1,5 +1,4 @@
 describe('localStorage/Chrome', function () {
-  this.timeout(10000);
 
   'use strict';
 
