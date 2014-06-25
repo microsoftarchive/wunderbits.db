@@ -24,6 +24,40 @@ else {
   context = window;
 }
 
+// chrome local storage mock
+var chromeStorageCache = {};
+global.chrome = {
+  'runtime': {},
+  'storage': {
+    'local': {
+      'get': function (key, callback) {
+
+        var obj = {};
+        obj[key] = chromeStorageCache[key];
+        callback(obj);
+      },
+      'set': function (data, callback) {
+
+        for (var key in data) {
+          chromeStorageCache[key] = data[key];
+        }
+
+        callback();
+      },
+      'remove': function (key, callback) {
+
+        delete chromeStorageCache[key];
+        callback();
+      },
+      'clear': function (callback) {
+
+        chromeStorageCache = {};
+        callback();
+      }
+    }
+  }
+};
+
 // expose bdd helpers from chai
 context.expect = chai.expect;
 chai.should();
