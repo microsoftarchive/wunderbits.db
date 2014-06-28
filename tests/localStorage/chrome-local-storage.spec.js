@@ -1,10 +1,6 @@
 describe('localStorage/Chrome', function () {
-  this.timeout(10000);
-
   'use strict';
 
-  // FIXME check for chrome local storage?
-  //if (!(chrome && chrome.storage && chrome.storage.local)) {
   if (!chrome) {
     return;
   } 
@@ -15,8 +11,8 @@ describe('localStorage/Chrome', function () {
   describe('basic functionality', function () {
     it ('should not throw exceptions', function (done) {
       var itemGet = function(val) {
-        expect(val.to.equal("a value"));
-        storage.deleteItem("a key").done(done);
+        expect(val).to.eql("a value");
+        storage.removeItem("a key").done(done);
       }
       var itemSet = function() {
         storage.getItem("a key").done(itemGet);        
