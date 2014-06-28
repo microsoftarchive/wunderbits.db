@@ -1,7 +1,7 @@
 describe('localStorage/Chrome', function () {
   'use strict';
 
-  if (!chrome) {
+  if (!('chrome' in global)) {
     return;
   } 
   var storage;
