@@ -613,6 +613,7 @@ while (types.length) {
 }
 
 module.exports = assert;
+
 },{}],12:[function(_dereq_,module,exports){
 'use strict';
 
@@ -2845,7 +2846,7 @@ var WebSQLBackend = AbstractBackend.extend({
       version = '' + version;
 
       // check if we need to upgrade the schema
-      if (db.version !== version) {
+      if (db.version !== version && !options.versionless) {
         db.changeVersion(db.version || '', version, function () {
 
           self.onUpgradeNeeded()
@@ -3307,6 +3308,8 @@ var WBDatabase = WBEventEmitter.extend({
     var database = schema.database;
     self.name = database.name;
 
+    self.versionless = !!options.versionless;
+
     // make version change with schema
     var version = (Object.keys(self.stores).length * 10e6);
     version += (parseInt(database.version, 10) || 1);
@@ -3332,6 +3335,7 @@ var WBDatabase = WBEventEmitter.extend({
     options = merge(options || {}, {
       'name': self.name,
       'version': self.version,
+      'versionless': self.versionless,
       'stores': stores,
       'infoLog': loggers.info,
       'errorLog': loggers.error,
@@ -3367,6 +3371,7 @@ var WBDatabase = WBEventEmitter.extend({
 
     // pipe backend errors
     backend.on('error', function () {
+      console.debug(arguments);
       self.trigger.apply(self, arguments);
     });
 
