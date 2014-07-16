@@ -153,13 +153,15 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function (event) {
 
     var self = this;
+
     var db = event.target.result;
     self.db = db;
     self.storeNames = db.objectStoreNames;
 
-    self.trigger('upgrading');
-
-    self.mapStores(self.createStore);
+    if (!self.options.versionless) {
+      self.trigger('upgrading');
+      self.mapStores(self.createStore);
+    }
   },
 
   'createStore': function (storeName, storeInfo) {
