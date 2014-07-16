@@ -221,13 +221,14 @@ var WBDatabase = WBEventEmitter.extend({
   },
 
   // Define getAll for the app to load all data in the beginning
-  'getAll': function (storeName, callback) {
+  'getAll': function (storeName, success, error) {
 
     var self = this;
     self.ready.done(function () {
 
       var request = self.backend.query(storeName);
-      request.done(callback);
+      success && request.done(success);
+      error && request.fail(error);
     });
   },
 

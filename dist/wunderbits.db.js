@@ -2406,13 +2406,15 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function (event) {
 
     var self = this;
+
     var db = event.target.result;
     self.db = db;
     self.storeNames = db.objectStoreNames;
 
-    self.trigger('upgrading');
-
-    self.mapStores(self.createStore);
+    if (!self.options.versionless) {
+      self.trigger('upgrading');
+      self.mapStores(self.createStore);
+    }
   },
 
   'createStore': function (storeName, storeInfo) {
@@ -3476,13 +3478,14 @@ var WBDatabase = WBEventEmitter.extend({
   },
 
   // Define getAll for the app to load all data in the beginning
-  'getAll': function (storeName, callback) {
+  'getAll': function (storeName, success, error) {
 
     var self = this;
     self.ready.done(function () {
 
       var request = self.backend.query(storeName);
-      request.done(callback);
+      success && request.done(success);
+      error && request.fail(error);
     });
   },
 
