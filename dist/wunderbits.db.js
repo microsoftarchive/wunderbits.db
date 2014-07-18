@@ -2359,10 +2359,15 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
 
-    var openRequest = indexedDB.open(name, version);
-    openRequest.onerror = self.onRequestError.bind(self);
-    openRequest.onsuccess = self.onRequestSuccess.bind(self);
-    openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    if (indexedDB) {
+      var openRequest = indexedDB.open(name, version);
+      openRequest.onerror = self.onRequestError.bind(self);
+      openRequest.onsuccess = self.onRequestSuccess.bind(self);
+      openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    }
+    else {
+      self.openFailure('ERR_IDB_CONNECT_FAILED');
+    }
   },
 
   'onRequestError': function (event) {
