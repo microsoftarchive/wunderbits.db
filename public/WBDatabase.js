@@ -7,6 +7,7 @@ var assert = core.lib.assert;
 var extend = core.lib.extend;
 var clone = core.lib.clone;
 var merge = core.lib.merge;
+var toArray = core.lib.toArray;
 
 var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
@@ -116,8 +117,9 @@ var WBDatabase = WBEventEmitter.extend({
 
     // pipe backend errors
     backend.on('error', function () {
-      console.debug(arguments);
-      self.trigger.apply(self, arguments);
+      var args = toArray(arguments);
+      args.unshift('error');
+      self.trigger.apply(self, args);
     });
 
     backend.connect(options)
