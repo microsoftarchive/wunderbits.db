@@ -33,11 +33,17 @@ var Errors = {
   'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
 };
 
+var _super = AbstractBackend.prototype;
 var IndexedDBBackend = AbstractBackend.extend({
 
-  'transactionQueue': {},
+  'initialize': function () {
 
-  'isFlushingTransactionQueue': {},
+    var self = this;
+    _super.initialize.apply(self, arguments);
+
+    self.transactionQueue = {};
+    self.isFlushingTransactionQueue = {};
+  },
 
   'flushNextTransactions': function (storeName, transaction) {
 

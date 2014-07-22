@@ -38,12 +38,13 @@ var backends = {
 
 var WBDatabase = WBEventEmitter.extend({
 
-  'crud': {},
-
   'initialize': function (options) {
 
     var self = this;
+
     options = options || {};
+    self.crud = {};
+
     self.ready = new WBDeferred();
 
     assert.object(options.schema);

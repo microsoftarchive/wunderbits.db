@@ -2286,11 +2286,17 @@ var Errors = {
   'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
 };
 
+var _super = AbstractBackend.prototype;
 var IndexedDBBackend = AbstractBackend.extend({
 
-  'transactionQueue': {},
+  'initialize': function () {
 
-  'isFlushingTransactionQueue': {},
+    var self = this;
+    _super.initialize.apply(self, arguments);
+
+    self.transactionQueue = {};
+    self.isFlushingTransactionQueue = {};
+  },
 
   'flushNextTransactions': function (storeName, transaction) {
 
@@ -3300,12 +3306,13 @@ var backends = {
 
 var WBDatabase = WBEventEmitter.extend({
 
-  'crud': {},
-
   'initialize': function (options) {
 
     var self = this;
+
     options = options || {};
+    self.crud = {};
+
     self.ready = new WBDeferred();
 
     assert.object(options.schema);
