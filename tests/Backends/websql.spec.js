@@ -138,8 +138,6 @@ describe('Database/Backends/WebSQL', function () {
               dbInstanceTwo.backend.listTables()
                 .done(function (tables) {
 
-                  console.debug(tables);
-
                   expect(tables).to.contain('tasks');
                   expect(tables).to.not.contain('lists');
                   done();

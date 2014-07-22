@@ -33,11 +33,17 @@ var Errors = {
   'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
 };
 
+var _super = AbstractBackend.prototype;
 var IndexedDBBackend = AbstractBackend.extend({
 
-  'transactionQueue': {},
+  'initialize': function () {
 
-  'isFlushingTransactionQueue': {},
+    var self = this;
+    _super.initialize.apply(self, arguments);
+
+    self.transactionQueue = {};
+    self.isFlushingTransactionQueue = {};
+  },
 
   'flushNextTransactions': function (storeName, transaction) {
 
@@ -106,10 +112,15 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
 
-    var openRequest = indexedDB.open(name, version);
-    openRequest.onerror = self.onRequestError.bind(self);
-    openRequest.onsuccess = self.onRequestSuccess.bind(self);
-    openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    if (indexedDB) {
+      var openRequest = indexedDB.open(name, version);
+      openRequest.onerror = self.onRequestError.bind(self);
+      openRequest.onsuccess = self.onRequestSuccess.bind(self);
+      openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    }
+    else {
+      self.openFailure('ERR_IDB_CONNECT_FAILED');
+    }
   },
 
   'onRequestError': function (event) {
@@ -153,13 +164,15 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function (event) {
 
     var self = this;
+
     var db = event.target.result;
     self.db = db;
     self.storeNames = db.objectStoreNames;
 
-    self.trigger('upgrading');
-
-    self.mapStores(self.createStore);
+    if (!self.options.versionless) {
+      self.trigger('upgrading');
+      self.mapStores(self.createStore);
+    }
   },
 
   'createStore': function (storeName, storeInfo) {

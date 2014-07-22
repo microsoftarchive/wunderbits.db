@@ -7,6 +7,7 @@ var assert = core.lib.assert;
 var extend = core.lib.extend;
 var clone = core.lib.clone;
 var merge = core.lib.merge;
+var toArray = core.lib.toArray;
 
 var MemoryBackend = require('./Backends/MemoryBackend');
 var WebSQLBackend = require('./Backends/WebSQLBackend');
@@ -37,12 +38,13 @@ var backends = {
 
 var WBDatabase = WBEventEmitter.extend({
 
-  'crud': {},
-
   'initialize': function (options) {
 
     var self = this;
+
     options = options || {};
+    self.crud = {};
+
     self.ready = new WBDeferred();
 
     assert.object(options.schema);
@@ -52,6 +54,8 @@ var WBDatabase = WBEventEmitter.extend({
 
     var database = schema.database;
     self.name = database.name;
+
+    self.versionless = !!options.versionless;
 
     // make version change with schema
     var version = (Object.keys(self.stores).length * 10e6);
@@ -78,6 +82,7 @@ var WBDatabase = WBEventEmitter.extend({
     options = merge(options || {}, {
       'name': self.name,
       'version': self.version,
+      'versionless': self.versionless,
       'stores': stores,
       'infoLog': loggers.info,
       'errorLog': loggers.error,
@@ -113,7 +118,9 @@ var WBDatabase = WBEventEmitter.extend({
 
     // pipe backend errors
     backend.on('error', function () {
-      self.trigger.apply(self, arguments);
+      var args = toArray(arguments);
+      args.unshift('error');
+      self.trigger.apply(self, args);
     });
 
     backend.connect(options)
@@ -217,13 +224,14 @@ var WBDatabase = WBEventEmitter.extend({
   },
 
   // Define getAll for the app to load all data in the beginning
-  'getAll': function (storeName, callback) {
+  'getAll': function (storeName, success, error) {
 
     var self = this;
     self.ready.done(function () {
 
       var request = self.backend.query(storeName);
-      request.done(callback);
+      success && request.done(success);
+      error && request.fail(error);
     });
   },
 

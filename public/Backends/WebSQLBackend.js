@@ -60,7 +60,7 @@ var WebSQLBackend = AbstractBackend.extend({
       version = '' + version;
 
       // check if we need to upgrade the schema
-      if (db.version !== version) {
+      if (db.version !== version && !options.versionless) {
         db.changeVersion(db.version || '', version, function () {
 
           self.onUpgradeNeeded()

@@ -613,6 +613,7 @@ while (types.length) {
 }
 
 module.exports = assert;
+
 },{}],12:[function(_dereq_,module,exports){
 'use strict';
 
@@ -2285,11 +2286,17 @@ var Errors = {
   'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
 };
 
+var _super = AbstractBackend.prototype;
 var IndexedDBBackend = AbstractBackend.extend({
 
-  'transactionQueue': {},
+  'initialize': function () {
 
-  'isFlushingTransactionQueue': {},
+    var self = this;
+    _super.initialize.apply(self, arguments);
+
+    self.transactionQueue = {};
+    self.isFlushingTransactionQueue = {};
+  },
 
   'flushNextTransactions': function (storeName, transaction) {
 
@@ -2358,10 +2365,15 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
 
-    var openRequest = indexedDB.open(name, version);
-    openRequest.onerror = self.onRequestError.bind(self);
-    openRequest.onsuccess = self.onRequestSuccess.bind(self);
-    openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    if (indexedDB) {
+      var openRequest = indexedDB.open(name, version);
+      openRequest.onerror = self.onRequestError.bind(self);
+      openRequest.onsuccess = self.onRequestSuccess.bind(self);
+      openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
+    }
+    else {
+      self.openFailure('ERR_IDB_CONNECT_FAILED');
+    }
   },
 
   'onRequestError': function (event) {
@@ -2405,13 +2417,15 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function (event) {
 
     var self = this;
+
     var db = event.target.result;
     self.db = db;
     self.storeNames = db.objectStoreNames;
 
-    self.trigger('upgrading');
-
-    self.mapStores(self.createStore);
+    if (!self.options.versionless) {
+      self.trigger('upgrading');
+      self.mapStores(self.createStore);
+    }
   },
 
   'createStore': function (storeName, storeInfo) {
@@ -2845,7 +2859,7 @@ var WebSQLBackend = AbstractBackend.extend({
       version = '' + version;
 
       // check if we need to upgrade the schema
-      if (db.version !== version) {
+      if (db.version !== version && !options.versionless) {
         db.changeVersion(db.version || '', version, function () {
 
           self.onUpgradeNeeded()
@@ -3261,6 +3275,7 @@ var assert = core.lib.assert;
 var extend = core.lib.extend;
 var clone = core.lib.clone;
 var merge = core.lib.merge;
+var toArray = core.lib.toArray;
 
 var MemoryBackend = _dereq_('./Backends/MemoryBackend');
 var WebSQLBackend = _dereq_('./Backends/WebSQLBackend');
@@ -3291,12 +3306,13 @@ var backends = {
 
 var WBDatabase = WBEventEmitter.extend({
 
-  'crud': {},
-
   'initialize': function (options) {
 
     var self = this;
+
     options = options || {};
+    self.crud = {};
+
     self.ready = new WBDeferred();
 
     assert.object(options.schema);
@@ -3306,6 +3322,8 @@ var WBDatabase = WBEventEmitter.extend({
 
     var database = schema.database;
     self.name = database.name;
+
+    self.versionless = !!options.versionless;
 
     // make version change with schema
     var version = (Object.keys(self.stores).length * 10e6);
@@ -3332,6 +3350,7 @@ var WBDatabase = WBEventEmitter.extend({
     options = merge(options || {}, {
       'name': self.name,
       'version': self.version,
+      'versionless': self.versionless,
       'stores': stores,
       'infoLog': loggers.info,
       'errorLog': loggers.error,
@@ -3367,7 +3386,9 @@ var WBDatabase = WBEventEmitter.extend({
 
     // pipe backend errors
     backend.on('error', function () {
-      self.trigger.apply(self, arguments);
+      var args = toArray(arguments);
+      args.unshift('error');
+      self.trigger.apply(self, args);
     });
 
     backend.connect(options)
@@ -3471,13 +3492,14 @@ var WBDatabase = WBEventEmitter.extend({
   },
 
   // Define getAll for the app to load all data in the beginning
-  'getAll': function (storeName, callback) {
+  'getAll': function (storeName, success, error) {
 
     var self = this;
     self.ready.done(function () {
 
       var request = self.backend.query(storeName);
-      request.done(callback);
+      success && request.done(success);
+      error && request.fail(error);
     });
   },
 
