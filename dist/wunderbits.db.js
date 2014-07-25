@@ -3709,7 +3709,7 @@ var WBBrowserLocalStorage = WBClass.extend({
   'removeItem': function (key) {
 
     var deferred = new WBDeferred();
-    localStorage.getItem(key);
+    localStorage.removeItem(key);
     return deferred.resolve().promise();
   },
 
