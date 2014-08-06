@@ -2365,7 +2365,13 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
 
+    self.name = name;
+    self.version = version;
+
     if (indexedDB) {
+      if (self.name === 'wunderlist-3') {
+        console.debug('openning indexedDB database', self.name, self.version);
+      }
       var openRequest = indexedDB.open(name, version);
       openRequest.onerror = self.onRequestError.bind(self);
       openRequest.onsuccess = self.onRequestSuccess.bind(self);
@@ -2383,6 +2389,10 @@ var IndexedDBBackend = AbstractBackend.extend({
     var errorName = error.name;
     var isDOMError = (error instanceof DOMError);
 
+    if (self.name === 'wunderlist-3') {
+      console.debug('indexedDB open error', self.name, self.version, errorName);
+    }
+
     if (errorName === 'InvalidStateError' && isDOMError) {
       self.openFailure(Errors.privateMode);
     }
@@ -2397,6 +2407,10 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onRequestSuccess': function (event) {
 
     var self = this;
+
+    if (self.name === 'wunderlist-3') {
+      console.debug('indexedDB open success', self.name, self.version);
+    }
 
     if (self.db) {
       self.openSuccess();
@@ -2417,6 +2431,10 @@ var IndexedDBBackend = AbstractBackend.extend({
   'onUpgradeNeeded': function (event) {
 
     var self = this;
+
+    if (self.name === 'wunderlist-3') {
+      console.debug('indexedDB upgrade needed', self.name, self.version);
+    }
 
     var db = event.target.result;
     self.db = db;
