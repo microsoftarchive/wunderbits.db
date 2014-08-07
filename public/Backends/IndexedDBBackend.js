@@ -112,14 +112,15 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
 
-    self.name = name;
-    self.version = version;
+    self.name = name || self.name;
+    self.version = version || self.version;
 
     if (indexedDB) {
       if (self.name === 'wunderlist-3') {
         console.debug('openning indexedDB database', self.name, self.version);
       }
       var openRequest = indexedDB.open(name, version);
+      openRequest.onblocked = self.onRequestBlocked.bind(self);
       openRequest.onerror = self.onRequestError.bind(self);
       openRequest.onsuccess = self.onRequestSuccess.bind(self);
       openRequest.onupgradeneeded = self.onUpgradeNeeded.bind(self);
@@ -127,6 +128,23 @@ var IndexedDBBackend = AbstractBackend.extend({
     else {
       self.openFailure('ERR_IDB_CONNECT_FAILED');
     }
+  },
+
+  'onRequestBlocked': function (event) {
+
+    var self = this;
+
+    if (self.name === 'wunderlist-3') {
+      console.debug('indexedDB blocked event', self.name, self.version, event);
+    }
+
+    setTimeout(function () {
+
+      console.info('retrying indexedDB#open ...');
+      if (self && !self.db) {
+        self.openDB(self.name, self.version);
+      }
+    }, 1000);
   },
 
   'onRequestError': function (event) {
