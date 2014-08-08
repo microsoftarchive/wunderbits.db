@@ -189,6 +189,9 @@ var IndexedDBBackend = AbstractBackend.extend({
     }
 
     self.db = db;
+
+    db.onversionchange = self.onVersionChange.bind(self);
+
     self.storeNames = db.objectStoreNames;
     self.openSuccess();
   },
@@ -203,12 +206,24 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var db = event.target.result;
     self.db = db;
+
+    db.onversionchange = self.onVersionChange.bind(self);
+
     self.storeNames = db.objectStoreNames;
 
     if (!self.options.versionless) {
       self.trigger('upgrading');
       self.mapStores(self.createStore);
     }
+  },
+
+  'onVersionChange': function (event) {
+
+    var self = this;
+
+    console.log('oldVersion = ' + event.oldVersion);
+    console.log('newVersion = ' + event.newVersion);
+    self.db.close();
   },
 
   'createStore': function (storeName, storeInfo) {

@@ -77,9 +77,6 @@ var AbstractBackend = WBEventEmitter.extend({
     var storeClearPromises = self.mapStores(self.clearStore);
     when(storeClearPromises).then(function () {
 
-      // kill the db connection for IDB
-      self.db && self.db.close && self.db.close()
-
       // reject all DB operations
       self.ready.reject();
       deferred.resolve();
