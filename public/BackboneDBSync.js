@@ -9,6 +9,7 @@ var generateId = require('./lib/generateId');
 
 // Default id Attribute used
 var defaultKeyPath = 'id';
+var noop = function () {};
 
 var BackboneDBSync = WBEventEmitter.extend({
 
@@ -72,7 +73,7 @@ var BackboneDBSync = WBEventEmitter.extend({
     var keyPath = (storeInfo && storeInfo.keyPath) || defaultKeyPath;
     var attributes = instance.attributes;
     var id = attributes.id || attributes[keyPath];
-    var isAWrite = /(create|update)/.test(method);
+    var isAWrite = self.isCU(method);
 
     // Assign IDs automatically if not present
     if (isAWrite) {
@@ -87,36 +88,15 @@ var BackboneDBSync = WBEventEmitter.extend({
       return;
     }
 
-    // skip invalid crup operation or models that don't have a valid storeName
+    // skip invalid crud operation or models that don't have a valid storeName
     if (storeName in stores) {
-
-      var _success = options.success;
-      options.success = function () {
-
-        if (typeof _success === 'function') {
-          _success.apply(this, arguments);
-        }
-
-        // trigger events for syncing
-        if (/(create|update|delete)/.test(method)) {
-          self.database.trigger(method, storeName, id);
-        }
-
-        // Update full-text index when needed
-        if ('fullTextIndexFields' in storeInfo) {
-          self.trigger('index', method, storeName, instance);
-        }
-
-        if (/(create|update)/.test(method)) {
-          self.trigger('write', storeName, id);
-        }
-        else if (/delete/.test(method)) {
-          self.trigger('destroy', storeName, id);
-        }
-      };
+      options.success = self.successFactory(
+        options.success,
+        method, storeName, storeInfo,
+        id, instance
+      );
 
       var request;
-
       // query collections
       if (method === 'read' && !instance.id && instance.model) {
         request = self.queryCollection(instance);
@@ -126,9 +106,59 @@ var BackboneDBSync = WBEventEmitter.extend({
         request = self.operateOnModel(instance, method);
       }
 
-      options.success && request.done(options.success);
+      request.done(options.success);
       options.error && request.fail(options.error);
     }
+  },
+
+  'successFactory': function (success, method, storeName, storeInfo, id, instance) {
+
+    var self = this;
+
+    var _success = (typeof success === 'function') ? success : noop;
+
+    // trigger events for syncing
+    var _dispatchCUD = self.isCUD(method) ? function () {
+
+      self.database.trigger(method, storeName, id);
+    } : noop;
+
+    // Update full-text index when needed
+    var _index = ('fullTextIndexFields' in storeInfo) ? function () {
+
+      self.trigger('index', method, storeName, instance);
+    } : noop;
+
+    var _dispatchWriteDestroy = self.isCU(method) ? function () {
+
+      self.trigger('write', storeName, id);
+    } : self.isD(method) ? function () {
+
+      self.trigger('destroy', storeName, id);
+    } : noop;
+
+    return function () {
+
+      _success.apply(this, arguments);
+      _dispatchCUD();
+      _index();
+      _dispatchWriteDestroy();
+    };
+  },
+
+  'isCUD': function (method) {
+
+    return method === 'create' || method ==='update' || method === 'delete';
+  },
+
+  'isCU': function (method) {
+
+    return method === 'create' || method ==='update';
+  },
+
+  'isD': function (method) {
+
+    return method === 'delete';
   }
 });
 
