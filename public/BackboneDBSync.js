@@ -73,7 +73,7 @@ var BackboneDBSync = WBEventEmitter.extend({
     var keyPath = (storeInfo && storeInfo.keyPath) || defaultKeyPath;
     var attributes = instance.attributes;
     var id = attributes.id || attributes[keyPath];
-    var isAWrite = self.isCU(method);
+    var isAWrite = self.isCreateUpdate(method);
 
     // Assign IDs automatically if not present
     if (isAWrite) {
@@ -118,7 +118,7 @@ var BackboneDBSync = WBEventEmitter.extend({
     var _success = (typeof success === 'function') ? success : noop;
 
     // trigger events for syncing
-    var _dispatchCUD = self.isCUD(method) ? function () {
+    var _dispatchCUD = self.isCreateUpdateDelete(method) ? function () {
 
       self.database.trigger(method, storeName, id);
     } : noop;
@@ -129,10 +129,10 @@ var BackboneDBSync = WBEventEmitter.extend({
       self.trigger('index', method, storeName, instance);
     } : noop;
 
-    var _dispatchWriteDestroy = self.isCU(method) ? function () {
+    var _dispatchWriteDestroy = self.isCreateUpdate(method) ? function () {
 
       self.trigger('write', storeName, id);
-    } : self.isD(method) ? function () {
+    } : self.isDelete(method) ? function () {
 
       self.trigger('destroy', storeName, id);
     } : noop;
@@ -146,17 +146,17 @@ var BackboneDBSync = WBEventEmitter.extend({
     };
   },
 
-  'isCUD': function (method) {
+  'isCreateUpdateDelete': function (method) {
 
     return method === 'create' || method ==='update' || method === 'delete';
   },
 
-  'isCU': function (method) {
+  'isCreateUpdate': function (method) {
 
     return method === 'create' || method ==='update';
   },
 
-  'isD': function (method) {
+  'isDelete': function (method) {
 
     return method === 'delete';
   }
