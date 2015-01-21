@@ -46,15 +46,30 @@ var WBBrowserLocalStorage = WBClass.extend({
   'removeItem': function (key) {
 
     var deferred = new WBDeferred();
-    localStorage.removeItem(key);
-    return deferred.resolve().promise();
+    try {
+      localStorage.removeItem(key);
+      deferred.resolve();
+    }
+    catch (e) {
+      deferred.reject(e);
+    }
+
+    return deferred.promise();
   },
 
   'clear': function () {
 
     var deferred = new WBDeferred();
-    localStorage.clear();
-    return deferred.resolve().promise();
+
+    try {
+      localStorage.clear();
+      deferred.resolve();
+    }
+    catch (e) {
+      deferred.reject(e);
+    }
+
+    return deferred.promise();
   }
 });
 
