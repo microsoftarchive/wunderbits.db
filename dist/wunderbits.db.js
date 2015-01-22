@@ -613,7 +613,6 @@ while (types.length) {
 }
 
 module.exports = assert;
-
 },{}],12:[function(_dereq_,module,exports){
 'use strict';
 
@@ -3719,8 +3718,17 @@ var WBBrowserLocalStorage = WBClass.extend({
   'getItem': function (key) {
 
     var deferred = new WBDeferred();
-    var value = localStorage.getItem(key);
-    return deferred.resolve(value).promise();
+    var value;
+
+    try {
+      value = localStorage.getItem(key);
+      deferred.resolve(value);
+    }
+    catch (e) {
+      deferred.reject(e);
+    }
+
+    return deferred.promise();
   },
 
   'setItem': function (key, value) {
@@ -3739,15 +3747,30 @@ var WBBrowserLocalStorage = WBClass.extend({
   'removeItem': function (key) {
 
     var deferred = new WBDeferred();
-    localStorage.removeItem(key);
-    return deferred.resolve().promise();
+    try {
+      localStorage.removeItem(key);
+      deferred.resolve();
+    }
+    catch (e) {
+      deferred.reject(e);
+    }
+
+    return deferred.promise();
   },
 
   'clear': function () {
 
     var deferred = new WBDeferred();
-    localStorage.clear();
-    return deferred.resolve().promise();
+
+    try {
+      localStorage.clear();
+      deferred.resolve();
+    }
+    catch (e) {
+      deferred.reject(e);
+    }
+
+    return deferred.promise();
   }
 });
 
