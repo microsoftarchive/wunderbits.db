@@ -593,10 +593,13 @@ assert.class = function (klass, message) {
   assert(proto && proto.constructor === klass, message);
 };
 
+assert.number = function (value, message) {
+  assert(typeof value === 'number' && !isNaN(value), message);
+};
+
 var types = [
   'undefined',
   'boolean',
-  'number',
   'string',
   'function',
   'object'
@@ -613,6 +616,7 @@ while (types.length) {
 }
 
 module.exports = assert;
+
 },{}],12:[function(_dereq_,module,exports){
 'use strict';
 
@@ -828,10 +832,10 @@ var events = {
     }
 
     // if no events are passed, unbind all events with this callback
-    events = events || Object.keys(self._events);
+    var localEvents = events || Object.keys(self._events);
 
     // loop through the events & bind them
-    self.iterate(events, function (name) {
+    self.iterate(localEvents, function (name) {
       self.unbind(name, callback, context);
     });
 
@@ -919,11 +923,12 @@ var events = {
     // call sub-event handlers
     var current = [];
     var fragments = name.split(':');
+    var subName;
     while (fragments.length) {
       current.push(fragments.shift());
-      name = current.join(':');
-      if (name in events) {
-        self.triggerSection(name, fragments, params);
+      subName = current.join(':');
+      if (subName in events) {
+        self.triggerSection(subName, fragments, params);
       }
     }
   },
@@ -947,15 +952,16 @@ var events = {
   'iterate': function (events, iterator) {
 
     var self = this;
+    var localEvents = events;
 
-    if (typeof events === 'string') {
-      events = events.split(eventSplitter);
+    if (typeof localEvents === 'string') {
+      localEvents = localEvents.split(eventSplitter);
     } else {
-      assert.array(events);
+      assert.array(localEvents);
     }
 
-    while (events.length) {
-      iterator.call(self, events.shift());
+    while (localEvents.length) {
+      iterator.call(self, localEvents.shift());
     }
   },
 
@@ -1211,13 +1217,14 @@ module.exports = isEqual;
 
 var toArray = _dereq_('./toArray');
 
-function merge (object, source) {
+function merge (object) {
+  var localSource;
   var sources = toArray(arguments, 1);
   while (sources.length) {
-    source = sources.shift();
-    for (var key in source) {
-      if (source.hasOwnProperty(key)) {
-        object[key] = source[key];
+    localSource = sources.shift();
+    for (var key in localSource) {
+      if (localSource.hasOwnProperty(key)) {
+        object[key] = localSource[key];
       }
     }
   }
@@ -1247,13 +1254,12 @@ function getAllocatedArray (arrLength) {
 
 function toArray (arrayLikeObj, skip) {
 
-  skip = skip || 0;
-
+  var localSkip = skip || 0;
   var length = arrayLikeObj.length;
-  var arr = getAllocatedArray(length - skip);
+  var arr = getAllocatedArray(length - localSkip);
 
-  for (var i = skip; i < length; i++) {
-    arr[i - skip] = arrayLikeObj[i];
+  for (var i = localSkip; i < length; i++) {
+    arr[i - localSkip] = arrayLikeObj[i];
   }
 
   return arr;
@@ -1494,7 +1500,6 @@ module.exports = ObservableHashMixin;
 'use strict';
 
 var WBMixin = _dereq_('../WBMixin');
-// var assert = require('../lib/assert');
 var createUID = _dereq_('../lib/createUID');
 
 var WBBindableMixin = WBMixin.extend({
@@ -1508,27 +1513,31 @@ var WBBindableMixin = WBMixin.extend({
   // only callback and context
   'callbackFactory': function  (callback, context) {
 
+    var self = this;
     var bindCallback;
 
-    var forString = function stringCallback () {
-      context[callback].apply(context, arguments);
-    };
-
-    var forFunction = function functionCallback () {
-      callback.apply(context, arguments);
-    };
-
     if (typeof callback === 'string') {
-      bindCallback = forString;
-      // cancel alternate closure immediately
-      forFunction = null;
+      bindCallback = self.stringCallbackFactory(callback, context);
     }
     else {
-      bindCallback = forFunction;
-      forString = null;
+      bindCallback = self.functionCallbackFactory(callback, context);
     }
 
     return bindCallback;
+  },
+
+  'stringCallbackFactory': function (callback, context) {
+
+    return function stringCallback () {
+      context[callback].apply(context, arguments);
+    };
+  },
+
+  'functionCallbackFactory': function (callback, context) {
+
+    return function functionCallback () {
+      callback.apply(context, arguments);
+    };
   },
 
   'bindTo': function (target, event, callback, context) {
@@ -1537,28 +1546,28 @@ var WBBindableMixin = WBMixin.extend({
     self.checkBindingArgs.apply(self, arguments);
 
     // default to self if context not provided
-    context = context || self;
+    var ctx = context || self;
 
     // if this binding already made, return it
-    var bound = self.isAlreadyBound(target, event, callback, context);
+    var bound = self.isAlreadyBound(target, event, callback, ctx);
     if (bound) {
       return bound;
     }
 
-
     var callbackFunc, args;
-
     // if a jquery object
-    if (target.constructor && target.constructor.fn && target.constructor.fn.on === target.on) {
+    if (self.isTargetJquery(target)) {
       // jquery does not take context in .on()
       // cannot assume on takes context as a param for bindable object
-      // create a callback which will apply the original callback in the correct context
-      callbackFunc = self.callbackFactory(callback, context);
+      // create a callback which will apply the original callback
+      // in the correct context
+      callbackFunc = self.callbackFactory(callback, ctx);
       args = [event, callbackFunc];
-    } else {
+    }
+    else {
       // Backbone accepts context when binding, simply pass it on
-      callbackFunc = (typeof callback === 'string') ? context[callback] : callback;
-      args = [event, callbackFunc, context];
+      callbackFunc = (typeof callback === 'string') ? ctx[callback] : callback;
+      args = [event, callbackFunc, ctx];
     }
 
     // create binding on target
@@ -1570,13 +1579,19 @@ var WBBindableMixin = WBMixin.extend({
       'event': event,
       'originalCallback': callback,
       'callback': callbackFunc,
-      'context': context
+      'context': ctx
     };
 
     self._bindings[binding.uid] = binding;
     self.addToNamedBindings(event, binding);
 
     return binding;
+  },
+
+  'isTargetJquery': function (target) {
+
+    var constructor = target.constructor;
+    return constructor && constructor.fn && constructor.fn.on === target.on;
   },
 
   'bindOnceTo': function (target, event, callback, context) {
@@ -1591,7 +1606,6 @@ var WBBindableMixin = WBMixin.extend({
     if (bound) {
       return bound;
     }
-
 
     // this is a wrapper
     var onceBinding = function () {
