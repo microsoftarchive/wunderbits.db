@@ -1,6 +1,6 @@
 {
   "name": "wunderbits.db",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Data storage for the browser",
   "main": "public/index.js",
   "scripts": {
