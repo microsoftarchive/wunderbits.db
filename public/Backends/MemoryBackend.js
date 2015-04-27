@@ -8,10 +8,10 @@ var toArray = core.lib.toArray;
 var AbstractBackend = require('./AbstractBackend');
 var SafeParse = require('../lib/SafeParse');
 
-var indexedDB = global.indexedDB ||
-                global.webkitIndexedDB ||
-                global.mozIndexedDB ||
-                global.msIndexedDB;
+var indexedDB = window.indexedDB ||
+                window.webkitIndexedDB ||
+                window.mozIndexedDB ||
+                window.msIndexedDB;
 
 var MemoryBackend = AbstractBackend.extend({
 
@@ -36,7 +36,7 @@ var MemoryBackend = AbstractBackend.extend({
     // clear out the localStorage &
     // try again for a better backend
     if (self.localStorageAvailable) {
-      var store = global.localStorage;
+      var store = window.localStorage;
       if (store.getItem('availableBackend') === 'memory' &&
           store.getItem('dbVersion') !== '' + options.version) {
 
@@ -48,12 +48,12 @@ var MemoryBackend = AbstractBackend.extend({
           var transaction = indexedDB.deleteDatabase(options.name);
           // Wait till the database is deleted before reloading the app
           transaction.onsuccess = transaction.onerror = function() {
-            global.location.reload();
+            window.location.reload();
           };
         }
         // Otherwise, reload right away
         else {
-          global.location.reload();
+          window.location.reload();
         }
       }
     }
@@ -80,7 +80,7 @@ var MemoryBackend = AbstractBackend.extend({
     self.ready = new WBDeferred();
 
     self.reset();
-    self.localStorageAvailable && global.localStorage.clear();
+    self.localStorageAvailable && window.localStorage.clear();
 
     setTimeout(function () {
 
@@ -109,7 +109,7 @@ var MemoryBackend = AbstractBackend.extend({
 
     if (self.localStorageAvailable && meta.critical) {
       var id = json[meta.keyPath] || json.id;
-      val = global.localStorage[storeName + '_' + id];
+      val = window.localStorage[storeName + '_' + id];
       val && (val = SafeParse.json(val));
     }
     else {
@@ -146,7 +146,7 @@ var MemoryBackend = AbstractBackend.extend({
 
     if (self.localStorageAvailable && meta.critical) {
       var id = json[meta.keyPath] || json.id;
-      global.localStorage[storeName + '_' + id] = JSON.stringify(json);
+      window.localStorage[storeName + '_' + id] = JSON.stringify(json);
     }
     else {
       self.cache[storeName][json.id] = json;

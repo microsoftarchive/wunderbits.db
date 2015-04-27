@@ -6,7 +6,7 @@ var WBDeferred = core.WBDeferred;
 
 var localStorage;
 try {
-  localStorage = global.localStorage;
+  localStorage = window.localStorage;
 }
 catch (e) {
   console.warn(e);

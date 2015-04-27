@@ -7,11 +7,11 @@ var when = core.lib.when;
 
 var AbstractBackend = require('./AbstractBackend');
 
-var DOMError = global.DOMError || global.DOMException;
-var indexedDB = global.indexedDB ||
-                global.webkitIndexedDB ||
-                global.mozIndexedDB ||
-                global.msIndexedDB;
+var DOMError = window.DOMError || window.DOMException;
+var indexedDB = window.indexedDB ||
+                window.webkitIndexedDB ||
+                window.mozIndexedDB ||
+                window.msIndexedDB;
 
 var Constants = {
   'READ': 'readonly',

@@ -1,6 +1,6 @@
 'use strict';
 
-var chrome = global.chrome;
+var chrome = window.chrome;
 var isChromeApp = chrome && chrome.storage;
 
 var localStorageClass;
