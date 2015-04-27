@@ -9,9 +9,9 @@ var printf = require('../lib/printf');
 var FieldTypes = require('../lib/FieldTypes');
 var SafeParse = require('../lib/SafeParse');
 
-var openConnection = global.openDatabase;
-var escape = global.escape;
-var unescape = global.unescape;
+var openConnection = window.openDatabase;
+var escape = window.escape;
+var unescape = window.unescape;
 
 var SQL = {
   'createTable': 'CREATE TABLE IF NOT EXISTS ? (? TEXT PRIMARY KEY, ?)',
