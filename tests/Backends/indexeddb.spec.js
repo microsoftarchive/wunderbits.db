@@ -2,11 +2,6 @@ describe('Backends/IndexedDBBackend', function () {
 
   'use strict';
 
-  // this suite is only for browsers that support WebSQL
-  if (!('openDatabase' in global)) {
-    return;
-  }
-
   var IndexedDBBackend = require('Backends/IndexedDBBackend');
   var instance;
 
