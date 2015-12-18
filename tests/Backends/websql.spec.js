@@ -1,4 +1,4 @@
-describe('Database/Backends/WebSQL', function () {
+describe('Backends/WebSQLBackend', function () {
 
   'use strict';
 

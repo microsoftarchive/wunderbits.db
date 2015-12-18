@@ -30,7 +30,8 @@ var Errors = {
   'cursorFailed': 'ERR_IDB_CANT_OPEN_CURSOR',
   'queryFailed': 'ERR_IDB_QUERY_FAILED',
   'updateFailed': 'ERR_IDB_STORE_UPDATE_FAILED',
-  'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED'
+  'destroyFailed': 'ERR_IDB_STORE_DESTROY_FAILED',
+  'transactionUnavailable': 'ERR_IDB_TRANSACTION_UNAVAILABLE'
 };
 
 var _super = AbstractBackend.prototype;
@@ -286,7 +287,16 @@ var IndexedDBBackend = AbstractBackend.extend({
   'getWriteTransaction': function (storeName) {
 
     var self = this;
-    return self.db.transaction([storeName], Constants.WRITE);
+    var transaction;
+
+    try {
+      transaction = self.db.transaction([storeName], Constants.WRITE);
+    }
+    catch (e) {
+      console.error(e);
+    }
+
+    return transaction;
   },
 
   'update': function (storeName, json) {
@@ -298,19 +308,26 @@ var IndexedDBBackend = AbstractBackend.extend({
     self.queueTransactionOperation(storeName, function updateTransaction (storeTransaction) {
 
       var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
-      var store = transaction.objectStore(storeName);
 
-      var request = store.put(json);
-
-      request.onsuccess = function () {
+      function success () {
         // pass transaction as second argument as to not resolve db request with wrong data
         deferred.resolve(undefined, transaction);
-      };
+      }
 
-      request.onerror = function (error) {
+      function fail (error) {
         self.trigger('error', Errors.updateFailed, error, storeName, json);
         deferred.reject();
-      };
+      }
+
+      if (transaction) {
+        var store = transaction.objectStore(storeName);
+        var request = store.put(json);
+        request.onsuccess = success;
+        request.onerror = fail;
+      }
+      else {
+        fail(Errors.transactionUnavailable);
+      }
 
       return promise;
     });
@@ -327,19 +344,26 @@ var IndexedDBBackend = AbstractBackend.extend({
     self.queueTransactionOperation(storeName, function destroyTransaction (storeTransaction) {
 
       var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
-      var store = transaction.objectStore(storeName);
-      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
 
-      var request = store['delete'](id);
-
-      request.onsuccess = function () {
+      function success () {
         deferred.resolve(undefined, transaction);
-      };
+      }
 
-      request.onerror = function (error) {
+      function fail (error) {
         self.trigger('error', Errors.destroyFailed, error, storeName, json);
         deferred.reject();
-      };
+      }
+
+      if (transaction) {
+        var store = transaction.objectStore(storeName);
+        var id = json[store.keyPath || self.defaultKeyPath] || json.id;
+        var request = store['delete'](id);
+        request.onsuccess = success;
+        request.onerror = fail;
+      }
+      else {
+        fail(Errors.transactionUnavailable);
+      }
 
       return promise;
     });
