@@ -10,22 +10,45 @@ describe('Backends/IndexedDBBackend', function () {
     instance = new IndexedDBBackend({});
   });
 
-  describe('#getWriteTransaction', function () {
+  describe('Given this.db.transaction throws an Error', function () {
 
     beforeEach(function () {
 
       instance.db = {
         'transaction': function () {
-          throw new Error('error error');
+          throw new Error('transaction error');
         }
       };
     });
 
-    it('should catch errors from indexeddb transaction', function () {
+    describe('#_getTransaction', function () {
 
-      expect(function () {
-        instance.getWriteTransaction();
-      }).to.not.throw;
+      it('should not throw', function () {
+
+        expect(function () {
+          instance._getTransaction('someStore', 'someType');
+        }).to.not.throw(Error);
+      });
+    });
+
+    describe('#_getWriteTransaction', function () {
+
+      it('should not throw', function () {
+
+        expect(function () {
+          instance._getWriteTransaction();
+        }).to.not.throw(Error);
+      });
+    });
+
+    describe('#_getReadTransaction', function () {
+
+      it('should not throw', function () {
+
+        expect(function () {
+          instance._getReadTransaction();
+        }).to.not.throw(Error);
+      });
     });
   });
 });
