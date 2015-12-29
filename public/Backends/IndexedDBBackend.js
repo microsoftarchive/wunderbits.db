@@ -193,24 +193,55 @@ var IndexedDBBackend = AbstractBackend.extend({
     }
   },
 
+  '_getTransaction': function (storeName, type) {
+
+    var self = this;
+    var transaction;
+
+    try {
+      transaction = self.db.transaction([storeName], type);
+    }
+    catch (e) {
+      console.error(e);
+    }
+
+    return transaction;
+  },
+
+  '_getReadTransaction': function (storeName) {
+
+    return this._getTransaction(storeName, Constants.READ);
+  },
+
+  '_getWriteTransaction': function (storeName) {
+
+    return this._getTransaction(storeName, Constants.WRITE);
+  },
+
   'clearStore': function (storeName) {
 
     var self = this;
     var deferred = new WBDeferred();
 
-    var transaction = self.db.transaction([storeName], Constants.WRITE);
-    var store = transaction.objectStore(storeName);
-
-    var request = store.clear();
-
-    request.onsuccess = function () {
+    function success () {
       deferred.resolve();
-    };
+    }
 
-    request.onerror = function (error) {
+    function failure (error) {
       self.trigger('error', Errors.storeClearFailed, error, storeName);
       deferred.reject();
-    };
+    }
+
+    var transaction = self._getWriteTransaction(storeName);
+    if (transaction) {
+      var store = transaction.objectStore(storeName);
+      var request = store.clear();
+      request.onsuccess = success;
+      request.onerror = failure;
+    }
+    else {
+      failure(Errors.transactionUnavailable);
+    }
 
     return deferred.promise();
   },
@@ -220,14 +251,13 @@ var IndexedDBBackend = AbstractBackend.extend({
     var self = this;
     var deferred = new WBDeferred();
 
-    var transaction = self.db.transaction([storeName], Constants.READ);
-    var store = transaction.objectStore(storeName);
-    var id = json[store.keyPath || self.defaultKeyPath] || json.id;
+    function failure (error) {
+      self.trigger('error', Errors.getFailed, error, storeName, json);
+      deferred.reject();
+    }
 
-    var request = store.get(id);
-
-    request.onsuccess = function (event) {
-      var json = event.target.result;
+    function success (e) {
+      var json = e.target.result;
       if (json) {
         deferred.resolve(json);
       }
@@ -235,12 +265,19 @@ var IndexedDBBackend = AbstractBackend.extend({
         self.trigger('error', Errors.notFound, null, storeName, json);
         deferred.reject();
       }
-    };
+    }
 
-    request.onerror = function (error) {
-      self.trigger('error', Errors.getFailed, error, storeName, json);
-      deferred.reject();
-    };
+    var transaction = self._getReadTransaction(storeName);
+    if (transaction) {
+      var store = transaction.objectStore(storeName);
+      var id = json[store.keyPath || self.defaultKeyPath] || json.id;
+      var request = store.get(id);
+      request.onsuccess = success;
+      request.onerror = failure;
+    }
+    else {
+      failure(Errors.transactionUnavailable);
+    }
 
     return deferred.promise();
   },
@@ -250,53 +287,45 @@ var IndexedDBBackend = AbstractBackend.extend({
     var self = this;
     var deferred = new WBDeferred();
 
-    var transaction = self.db.transaction([storeName], Constants.READ);
-    var store = transaction.objectStore(storeName);
-    var elements = [];
-
-    var readCursor = store.openCursor();
-
-    if (!readCursor) {
-      self.trigger('error', Errors.cursorFailed, null, storeName);
+    function failure (error) {
+      self.trigger('error', Errors.queryFailed, error, storeName);
       deferred.reject();
     }
-    else {
-      readCursor.onerror = function (error) {
-        self.trigger('error', Errors.queryFailed, error, storeName);
+
+    function success (e) {
+
+      var cursor = e.target.result;
+      // We're done. No more elements.
+      if (!cursor) {
+        deferred.resolve(elements);
+      }
+      // We have more records to process
+      else {
+        elements.push(cursor.value);
+        cursor['continue']();
+      }
+    }
+
+    var transaction = self._getReadTransaction(storeName);
+    if (transaction) {
+      var store = transaction.objectStore(storeName);
+      var elements = [];
+      var readCursor = store.openCursor();
+
+      if (!readCursor) {
+        self.trigger('error', Errors.cursorFailed, null, storeName);
         deferred.reject();
-      };
-
-      readCursor.onsuccess = function (e) {
-
-        var cursor = e.target.result;
-        // We're done. No more elements.
-        if (!cursor) {
-          deferred.resolve(elements);
-        }
-        // We have more records to process
-        else {
-          elements.push(cursor.value);
-          cursor['continue']();
-        }
-      };
+      }
+      else {
+        readCursor.onerror = failure;
+        readCursor.onsuccess = success;
+      }
+    }
+    else {
+      failure(Errors.transactionUnavailable);
     }
 
     return deferred.promise();
-  },
-
-  'getWriteTransaction': function (storeName) {
-
-    var self = this;
-    var transaction;
-
-    try {
-      transaction = self.db.transaction([storeName], Constants.WRITE);
-    }
-    catch (e) {
-      console.error(e);
-    }
-
-    return transaction;
   },
 
   'update': function (storeName, json) {
@@ -307,14 +336,14 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     self.queueTransactionOperation(storeName, function updateTransaction (storeTransaction) {
 
-      var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
+      var transaction = storeTransaction ? storeTransaction : self._getWriteTransaction(storeName);
 
       function success () {
         // pass transaction as second argument as to not resolve db request with wrong data
         deferred.resolve(undefined, transaction);
       }
 
-      function fail (error) {
+      function failure (error) {
         self.trigger('error', Errors.updateFailed, error, storeName, json);
         deferred.reject();
       }
@@ -323,10 +352,10 @@ var IndexedDBBackend = AbstractBackend.extend({
         var store = transaction.objectStore(storeName);
         var request = store.put(json);
         request.onsuccess = success;
-        request.onerror = fail;
+        request.onerror = failure;
       }
       else {
-        fail(Errors.transactionUnavailable);
+        failure(Errors.transactionUnavailable);
       }
 
       return promise;
@@ -343,7 +372,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     self.queueTransactionOperation(storeName, function destroyTransaction (storeTransaction) {
 
-      var transaction = storeTransaction ? storeTransaction : self.getWriteTransaction(storeName);
+      var transaction = storeTransaction ? storeTransaction : self._getWriteTransaction(storeName);
 
       function success () {
         deferred.resolve(undefined, transaction);
@@ -375,9 +404,7 @@ var IndexedDBBackend = AbstractBackend.extend({
 
     var self = this;
     var dbName = self.options.db.name;
-
     var deferred = new WBDeferred();
-
     var request = indexedDB.deleteDatabase(dbName);
 
     request.onsuccess = function () {
